@@ -1,32 +1,103 @@
-FROM continuumio/miniconda3:latest
+# ==================================================================
+# module list
+# ------------------------------------------------------------------
+# python        3.6    (apt)
+# pytorch       latest (pip)
+# ==================================================================
 
-USER root
+FROM ubuntu:16.04
+RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
+    PIP_INSTALL="python -m pip --no-cache-dir install --upgrade" && \
+    GIT_CLONE="git clone --depth 10" && \
 
-# Install extra packages if required
-RUN apt-get update && \
-    apt-get install -y redis-server && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* \
+           /etc/apt/sources.list.d/cuda.list \
+           /etc/apt/sources.list.d/nvidia-ml.list && \
 
-# Add the user that will run the app (no need to run as root)
-#RUN groupadd -r ubuntu && useradd -r -g ubuntu ubuntu
+    apt-get update && \
+
+# ==================================================================
+# tools
+# ------------------------------------------------------------------
+
+    DEBIAN_FRONTEND=noninteractive $APT_INSTALL \
+        build-essential \
+        ca-certificates \
+        cmake \
+        wget \
+        git \
+        nano \
+        vim \
+        redis-server \
+        && \
+
+# ==================================================================
+# python
+# ------------------------------------------------------------------
+
+    DEBIAN_FRONTEND=noninteractive $APT_INSTALL \
+        software-properties-common \
+        && \
+    add-apt-repository ppa:deadsnakes/ppa && \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive $APT_INSTALL \
+        python3.6 \
+        python3.6-dev \
+        libsm6 libxrender1 libxext6 \
+        && \
+    wget -O ~/get-pip.py \
+        https://bootstrap.pypa.io/get-pip.py && \
+    python3.6 ~/get-pip.py && \
+    ln -s /usr/bin/python3.6 /usr/local/bin/python3 && \
+    ln -s /usr/bin/python3.6 /usr/local/bin/python && \
+    $PIP_INSTALL \
+        setuptools \
+        && \
+    $PIP_INSTALL \
+        numpy \
+        matplotlib \
+        Cython \
+        falcon \
+        albumentations \
+        Pillow \
+        redis \
+        gunicorn \
+        && \
+
+# ==================================================================
+# pytorch
+# ------------------------------------------------------------------
+
+    $PIP_INSTALL \
+        future \
+        numpy \
+        protobuf \
+        enum34 \
+        pyyaml \
+        typing \
+#    	torchvision_nightly \
+        torchvision \
+        && \
+    $PIP_INSTALL \
+#        torch_nightly -f \
+#        https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html \
+        https://download.pytorch.org/whl/cpu/torch-1.0.0-cp36-cp36m-linux_x86_64.whl \
+        && \
+
+# ==================================================================
+# config & cleanup
+# ------------------------------------------------------------------
+
+    ldconfig && \
+    apt-get clean && \
+    apt-get autoremove && \
+    rm -rf /var/lib/apt/lists/* /tmp/* ~/*
 
 RUN mkdir -p /app
 WORKDIR /app
-
-# Install app requirements
-COPY environment-cpu.yml /app/environment.yml
-RUN conda config --add channels conda-forge && \
-    conda env create -f environment.yml && \
-    rm -rf /opt/conda/pkgs/*
-
-# Install app
 COPY . /app/
-#RUN chown -R myuser:myuser /app/*
-
-# activate the myapp environment
-#ENV PATH /opt/conda/envs/myapp/bin:$PATH
 
 EXPOSE 8000
 
 ENTRYPOINT [ ]
-CMD [ "/app/start-api.sh" ]
+CMD [ "/app/start-all.sh" ]

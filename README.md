@@ -23,7 +23,26 @@ gunicorn --reload 'api.app:get_app()'
 * The API will be available on localhost:8000
 
 # Docker
-TODO
+
+Build image
+```
+docker build -t am-segm -f docker/Dockerfile .
+```
+
+Run container
+```
+docker run -d -p 8000:8000 --name am-segm am-segm
+```
+
+Get inside container
+```
+docker exec -it am-segm /bin/bash
+```
+
+Destroy container
+```
+docker rm --force am-segm
+```
 
 # Using API
 

@@ -2,12 +2,14 @@ import os
 from pathlib import Path
 import falcon
 
-from api.am_masks import AblationMask, SegmentationTask, SegmentationTaskCollection
+from api.am import AblationMask, SegmentationTask, SegmentationTaskCollection
 from api.segmentator import Segmentator
 from utils import logger
 
+DEFAULT_DATA_PATH = './data/tasks'
 
-def create_app(data_path='./data/tasks'):
+
+def create_app(data_path):
     segmentator = Segmentator(data_path)
     api = falcon.API()
     # api.add_route('/masks', am_masks.AblationMaskCollection(mask_store))
@@ -18,7 +20,7 @@ def create_app(data_path='./data/tasks'):
 
 
 def get_app():
-    data_path = Path(os.environ.get('LOOK_STORAGE_PATH', './data'))
+    data_path = Path(os.environ.get('LOOK_STORAGE_PATH', DEFAULT_DATA_PATH))
     return create_app(data_path)
 
 
