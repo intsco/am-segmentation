@@ -1,13 +1,15 @@
+import cv2
 import torch
 from albumentations.pytorch.functional import img_to_tensor
 
-from dataset import (
+from .dataset import (
     combine_tiles,
     remove_padding,
-    slice_images_masks,
-    default_transform
+    default_transform,
+    slice_image, pad_source_image,
+    get_n_splits
 )
-from model import UNet11
+from .model import UNet11
 from utils import logger
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -15,9 +17,8 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 class SegmentationModel(object):
 
-    def __init__(self, model_path, full_size=4096, n_splits=8):
-        self.full_size = full_size
-        self.n_splits = n_splits
+    def __init__(self, model_path, tile_size=512):
+        self.tile_size = tile_size
         self.transform = default_transform()
 
         logger.info('Loading model...')
@@ -26,31 +27,31 @@ class SegmentationModel(object):
         model.load_state_dict(state)
         self.model = model.to(device)
 
-    def predict_mask(self, image_dir, threshold=0.3):
-        images, masks, source_image_padding = slice_images_masks([image_dir],
-                                                                 full_size=self.full_size,
-                                                                 n_splits=self.n_splits)
-        image_tensors = [img_to_tensor(self.transform(image=img)['image'])
-                         for img in images]
+    def predict_mask(self, image_path, threshold=None):
+        image = cv2.imread(str(image_path))
 
-        logger.info(f'Predicting mask for {image_dir}...')
+        n_splits = get_n_splits(max(image.shape[:2]), self.tile_size)
+        full_size = n_splits * self.tile_size
+        image, (row_pad, col_pad) = pad_source_image(image, full_size)
+        tiles = slice_image(image, self.tile_size)
+
+        image_tensors = [img_to_tensor(self.transform(image=img)['image'])
+                         for img in tiles]
+
+        logger.info(f'Predicting mask for {image_path}...')
         pred_outputs = []
         with torch.no_grad():
             self.model.eval()
             for inputs in image_tensors:
                 inputs = torch.unsqueeze(inputs, dim=0).to(device)
-                outputs = self.model(inputs)
-                outputs = torch.sigmoid(outputs) > threshold
+                outputs = torch.sigmoid(self.model(inputs))
+                if threshold:
+                    outputs = outputs > threshold
                 pred_outputs.append(outputs)
         pred_outputs = torch.squeeze(torch.cat(pred_outputs))
         pred_outputs = pred_outputs.detach().cpu().numpy()
 
-        pred_mask = combine_tiles(pred_outputs, self.full_size, self.n_splits)
-        row_pad, col_pad = source_image_padding[str(image_dir)]
-        pred_mask = remove_padding(pred_mask, self.full_size, row_pad, col_pad)
+        pred_mask = combine_tiles(pred_outputs, self.tile_size, n_splits)
+        pred_mask = remove_padding(pred_mask, row_pad, col_pad)
         logger.info('Done')
         return pred_mask
-
-
-
-

@@ -7,7 +7,7 @@
 
 FROM ubuntu:16.04
 RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
-    PIP_INSTALL="python -m pip --no-cache-dir install --upgrade" && \
+    PIP_INSTALL="python -m pip install --upgrade" && \
     GIT_CLONE="git clone --depth 10" && \
 
     rm -rf /var/lib/apt/lists/* \
@@ -54,11 +54,11 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
         setuptools \
         && \
     $PIP_INSTALL \
-        numpy \
         matplotlib \
         Cython \
         falcon \
         albumentations \
+        numpy==1.15.4 \
         Pillow \
         redis \
         gunicorn \
@@ -70,18 +70,17 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
 
     $PIP_INSTALL \
         future \
-        numpy \
         protobuf \
         enum34 \
         pyyaml \
         typing \
 #    	torchvision_nightly \
-        torchvision \
         && \
     $PIP_INSTALL \
 #        torch_nightly -f \
 #        https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html \
         https://download.pytorch.org/whl/cpu/torch-1.0.0-cp36-cp36m-linux_x86_64.whl \
+        torchvision \
         && \
 
 # ==================================================================
@@ -91,7 +90,7 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
     ldconfig && \
     apt-get clean && \
     apt-get autoremove && \
-    rm -rf /var/lib/apt/lists/* /tmp/* ~/*
+    rm -rf /var/lib/apt/lists/* /tmp/* ~/* ~/.cache/*
 
 RUN mkdir -p /app
 WORKDIR /app
