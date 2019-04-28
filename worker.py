@@ -23,7 +23,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     data_path = Path(args.data_path)
-    model = SegmentationModel(args.model_path)
+    segm_model = SegmentationModel(args.model_path)
     redis_client = redis.Redis()
 
     interval = 1
@@ -34,7 +34,8 @@ if __name__ == '__main__':
             if task_id:
                 task_path = data_path / task_id.decode('utf-8')
                 save_status(task_path / 'status.txt', 'PROCESSING')
-                pred_mask = model.predict_mask(task_path)
+                image_path = task_path / 'image.png'
+                pred_mask = segm_model.predict_mask(image_path, threshold=None)
                 save_mask(pred_mask, task_path / 'mask.png')
                 save_status(task_path / 'status.txt', 'FINISHED')
         except Exception as e:
