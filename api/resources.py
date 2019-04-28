@@ -24,8 +24,8 @@ def validate_task_id(req, resp, resource, params):
 
 # class AblationMaskCollection(object):
 #
-#     def __init__(self, segmentator):
-#         self._segmentator = segmentator
+#     def __init__(self, task_manager):
+#         self._task_manager = task_manager
 #
 #     def on_get(self, req, resp):
 #         mask_docs = [{'href': f'/masks/{fn}'}
@@ -39,13 +39,13 @@ def validate_task_id(req, resp, resource, params):
 
 class AblationMask(object):
 
-    def __init__(self, segmentator):
-        self._segmentator = segmentator
+    def __init__(self, task_manager):
+        self._task_manager = task_manager
 
     @falcon.before(validate_task_id)
     def on_get(self, req, resp, task_id):
         try:
-            resp.stream, resp.stream_len = self._segmentator.read_mask(task_id)
+            resp.stream, resp.stream_len = self._task_manager.read_result(task_id)
             resp.content_type = falcon.MEDIA_PNG
         except IOError as e:
             raise falcon.HTTPNotFound()
@@ -53,25 +53,25 @@ class AblationMask(object):
 
 class SegmentationTaskCollection(object):
 
-    def __init__(self, segmentator):
-        self._segmentator = segmentator
+    def __init__(self, task_manager):
+        self._task_manager = task_manager
 
     @falcon.before(validate_image_type)
     def on_post(self, req, resp):
-        task_id = self._segmentator.create_task(req.stream, req.content_type)
+        task_id = self._task_manager.create_task(req.stream, req.content_type)
         resp.status = falcon.HTTP_201
         resp.location = '/tasks/' + task_id
 
 
 class SegmentationTask(object):
 
-    def __init__(self, segmentator):
-        self._segmentator = segmentator
+    def __init__(self, task_manager):
+        self._task_manager = task_manager
 
     @falcon.before(validate_task_id)
     def on_get(self, req, resp, task_id):
         doc = {
-            'status': self._segmentator.task_status(task_id)
+            'status': self._task_manager.task_status(task_id)
         }
         resp.body = json.dumps(doc, ensure_ascii=False)
         resp.status = falcon.HTTP_200

@@ -1,13 +1,13 @@
 import torch
 from albumentations.pytorch.functional import img_to_tensor
 
-from dataset import (
+from .dataset import (
     combine_tiles,
     remove_padding,
     slice_images_masks,
     default_transform
 )
-from model import UNet11
+from .model import UNet11
 from utils import logger
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -39,8 +39,7 @@ class SegmentationModel(object):
             self.model.eval()
             for inputs in image_tensors:
                 inputs = torch.unsqueeze(inputs, dim=0).to(device)
-                outputs = self.model(inputs)
-                outputs = torch.sigmoid(outputs) > threshold
+                outputs = torch.sigmoid(self.model(inputs)) > threshold
                 pred_outputs.append(outputs)
         pred_outputs = torch.squeeze(torch.cat(pred_outputs))
         pred_outputs = pred_outputs.detach().cpu().numpy()

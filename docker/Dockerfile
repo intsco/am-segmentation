@@ -54,11 +54,11 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
         setuptools \
         && \
     $PIP_INSTALL \
-        numpy \
         matplotlib \
         Cython \
         falcon \
         albumentations \
+        numpy==1.15.4 \
         Pillow \
         redis \
         gunicorn \
@@ -70,18 +70,17 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
 
     $PIP_INSTALL \
         future \
-        numpy \
         protobuf \
         enum34 \
         pyyaml \
         typing \
 #    	torchvision_nightly \
-        torchvision \
         && \
     $PIP_INSTALL \
 #        torch_nightly -f \
 #        https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html \
         https://download.pytorch.org/whl/cpu/torch-1.0.0-cp36-cp36m-linux_x86_64.whl \
+        torchvision \
         && \
 
 # ==================================================================

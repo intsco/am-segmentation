@@ -5,7 +5,7 @@ from PIL import Image
 from time import sleep
 import redis
 
-from inference import SegmentationModel
+from segmentation.inference import SegmentationModel
 from utils import logger, save_status
 
 
