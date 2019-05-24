@@ -1,8 +1,7 @@
-name: fastai
+name: am_segm
 channels:
   - pytorch
   - conda-forge
-  - fastai
   - defaults
 dependencies:
   - jupyterlab=0.35.2=py37_0
@@ -114,7 +113,6 @@ dependencies:
   - pyparsing=2.2.2=py37_0
   - pyqt=5.9.2=py37h05f1152_2
   - pysocks=1.6.8=py37_0
-  - python=3.7.0=h6e4f718_3
   - python-dateutil=2.7.3=py37_0
   - pytz=2018.5=py37_0
   - pyyaml=3.13=py37h14c3975_0
@@ -154,11 +152,6 @@ dependencies:
   - zeromq=4.2.5=hf484d3e_1
   - zlib=1.2.11=ha838bed_2
   - dataclasses=0.6=py_0
-  - fastai=1.0.34=py_1
-  - fastprogress=0.1.18=py_0
-  - torchvision-nightly=0.2.1=py_0
-  - cuda92=1.0=0
-  - pytorch-nightly=1.0.0.dev20181027=py3.7_cuda9.2.148_cudnn7.1.4_0
   - pip:
     - albumentations==0.1.8
     - attrs==18.2.0
@@ -173,5 +166,3 @@ dependencies:
     - pywavelets==1.0.1
     - scikit-image==0.14.1
     - shapely==1.6.4.post2
-    - torch==1.0.0.dev20181027
-    - torchvision==0.2.1

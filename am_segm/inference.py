@@ -1,6 +1,7 @@
 import cv2
 import torch
 from albumentations.pytorch.functional import img_to_tensor
+from torch.utils.data import Dataset
 
 from .dataset import (
     combine_tiles,
@@ -13,6 +14,29 @@ from .model import UNet11
 from utils import logger
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+
+class AMDataset(Dataset):
+    def __init__(self, image_dirs, tile_size=512, transform=None):
+        self.transform = transform or default_transform()
+        self.source_image_padding = {}
+        self.images, self.masks, self.source_image_padding, self.source_image_n_slices = \
+            slice_images_masks(image_dirs, tile_size=tile_size)
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, idx):
+        image = self.images[idx]
+        mask = self.masks[idx][:, :, :1]
+
+        if self.transform:
+            augmented = self.transform(image=image, mask=mask)
+            image = img_to_tensor(augmented['image'])
+            mask = img_to_tensor(augmented['mask'])
+
+        return image, mask
+
 
 
 class SegmentationModel(object):

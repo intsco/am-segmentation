@@ -1,0 +1,10 @@
+matplotlib
+albumentations
+scikit-learn
+pandas
+torch
+torchvision
+ipykernel
+tensorboardX
+tensorboard
+segmentation-models-pytorch
