@@ -17,8 +17,8 @@ def make_image_mask_dfs(data_path):
         else:
             print(f'{group_path.name} group images collecting')
 
-            for image_path, mask_path in zip(sorted((group_path / 'source').iterdir()),
-                                             sorted((group_path / 'mask').iterdir())):
+            for image_path, mask_path in zip(sorted((group_path / 'source').glob('*.png')),
+                                             sorted((group_path / 'mask').glob('*.png'))):
                 assert image_path.name == mask_path.name
 
                 image_paths['source'].append((group_path.name, image_path))
