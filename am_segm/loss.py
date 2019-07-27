@@ -2,25 +2,31 @@ import torch
 import torch.nn as nn
 
 
-class LossBinary(object):
-    """ Loss defined as \alpha BCE - (1 - \alpha) SoftJaccard
+def soft_dice_jaccard(output, target, jaccard=False, smooth=1.):
+    output = torch.sigmoid(output)
+
+    intersection = (output * target).sum()
+    union_plus_intersection = output.sum() + target.sum()
+
+    if jaccard:
+        return (intersection + smooth) / (union_plus_intersection - intersection + smooth)
+    else:
+        return (2. * intersection + smooth) / (union_plus_intersection + smooth)
+
+
+class CombinedLoss(object):
+    """ Loss defined as \alpha BCE - (1 - \alpha) SoftJaccard or SoftDice
     """
-    def __init__(self, jaccard_weight=0):
+    def __init__(self, bce_weight=None, jaccard=False, smooth=1.):
         self.nll_loss = nn.BCEWithLogitsLoss()
-        self.jaccard_weight = jaccard_weight
+        self.bce_weight = bce_weight
+        self.jaccard = jaccard
+        self.smooth = smooth
 
-    def __call__(self, outputs, targets):
-        loss = (1 - self.jaccard_weight) * self.nll_loss(outputs, targets)
-
-        if self.jaccard_weight:
-            eps = 1e-15
-            jaccard_target = (targets == 1).float()
-            jaccard_output = torch.sigmoid(outputs)
-
-            intersection = (jaccard_output * jaccard_target).sum()
-            union = jaccard_output.sum() + jaccard_target.sum()
-
-            loss -= self.jaccard_weight * torch.log((intersection + eps) / (union - intersection + eps))
+    def __call__(self, output, target):
+        loss = self.bce_weight * self.nll_loss(output, target)
+        loss += (1 - self.bce_weight) * - torch.log(soft_dice_jaccard(output, target,
+                                                                      self.jaccard, self.smooth))
         return loss
 
 
@@ -29,5 +35,5 @@ def jaccard(y_pred, y_true):
     y_pred = torch.squeeze(y_pred, dim=1)
     epsilon = 1e-15
     intersection = (y_pred * y_true).sum(dim=-2).sum(dim=-1)
-    union = y_true.sum(dim=-2).sum(dim=-1) + y_pred.sum(dim=-2).sum(dim=-1)
-    return (intersection + epsilon) / (union - intersection + epsilon)
+    union_plus_intersection = y_true.sum(dim=-2).sum(dim=-1) + y_pred.sum(dim=-2).sum(dim=-1)
+    return (intersection + epsilon) / (union_plus_intersection - intersection + epsilon)

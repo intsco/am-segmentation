@@ -3,18 +3,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 
-from am_segm.utils import read_image, plot_overlay
-
-
-def overlay_group(group_path):
-    print(f'Overlaying: {group_path}')
-    mask = read_image(str(group_path / 'mask.png'))
-    image = read_image(str(group_path / 'source.png'))
-    assert image.shape == mask.shape
-
-    fig = plot_overlay(image, mask)
-    plt.savefig(group_path / 'overlay.png', dpi=600)
-
+from am_segm.utils import read_image, plot_overlay, overlay_group
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')

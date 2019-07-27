@@ -1,3 +1,5 @@
+cv2
+numpy
 matplotlib
 albumentations
 scikit-learn

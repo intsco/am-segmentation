@@ -1,14 +1,14 @@
 import time
 from pathlib import Path
+
 import torch
 from torch.optim import Adam
 from torch.utils.data import DataLoader
+from segmentation_models_pytorch import Unet, FPN
 
 from am_segm.dataset import AMDataset, make_image_mask_dfs, train_transform, valid_transform
-from am_segm.loss import jaccard, LossBinary
+from am_segm.loss import jaccard, CombinedLoss
 from am_segm.model import UNet11
-
-from segmentation_models_pytorch import Unet
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -68,7 +68,6 @@ def train_loop(model, train_dl, valid_dl=None,
                 if writer:
                     writer.add_scalar('loss/valid', valid_loss, epoch)
                     writer.add_scalar('jaccard/valid', valid_metric, epoch)
-
         elapsed = int(time.time() - start)
         print(f'{elapsed // 60} min {elapsed % 60} sec')
 
@@ -107,7 +106,7 @@ if __name__ == '__main__':
 
     model = UNet11(pretrained=True)
     optimizer = Adam(model.parameters(), lr=lr)
-    criterion = LossBinary(jaccard_weight=0.5)
+    criterion = CombinedLoss()
 
     train_loop(model, train_dl, valid_dl,
                optimizer, criterion,

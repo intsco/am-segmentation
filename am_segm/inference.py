@@ -1,81 +1,70 @@
+import numpy as np
 import cv2
 import torch
+from torch.utils.data import Dataset, DataLoader
 from albumentations.pytorch.functional import img_to_tensor
-from torch.utils.data import Dataset
-
-from .dataset import (
-    combine_tiles,
-    remove_padding,
-    default_transform,
-    slice_image, pad_source_image,
-    get_n_splits
-)
-from .model import UNet11
-from utils import logger
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
-class AMDataset(Dataset):
-    def __init__(self, image_dirs, tile_size=512, transform=None):
-        self.transform = transform or default_transform()
-        self.source_image_padding = {}
-        self.images, self.masks, self.source_image_padding, self.source_image_n_slices = \
-            slice_images_masks(image_dirs, tile_size=tile_size)
+def predict_ds(model, ds):
+    batch_size = 32
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    dl = DataLoader(
+        dataset=ds,
+        shuffle=False,
+        num_workers=4,
+        batch_size=batch_size,
+        pin_memory=torch.cuda.is_available()
+    )
+    batch_n = len(dl)
+    pred_list = []
+    with torch.no_grad():
+        model.eval()
+        for batch_i, (inputs, _) in enumerate(dl, 1):
+            print(f'{batch_i}/{batch_n} batches processed', end='\r', flush=True)
+            inputs = inputs.to(device)
+            probs = torch.sigmoid(model(inputs))
+            probs = probs.squeeze(dim=1).detach().cpu().numpy()
+            masks = (probs > 0.5).astype(int)
+            pred_list.extend([m for m in masks])
+    return pred_list
 
-    def __len__(self):
-        return len(self.images)
 
-    def __getitem__(self, idx):
-        image = self.images[idx]
-        mask = self.masks[idx][:, :, :1]
+def load_ds_images(ds):
+    def f(i):
+        image_path = ds.image_df.iloc[i].path
+        return cv2.imread(str(image_path))[:, :, 0]
 
-        if self.transform:
-            augmented = self.transform(image=image, mask=mask)
-            image = img_to_tensor(augmented['image'])
-            mask = img_to_tensor(augmented['mask'])
-
-        return image, mask
+    return [f(i) for i in range(len(ds))]
 
 
+def predict_save(model, ds, pred_path, groups=None):
+    pred_list = predict_ds(model, ds)
+    image_list = load_ds_images(ds)
+    group_list = ds.image_df.group.values
 
-class SegmentationModel(object):
+    if not groups:
+        groups = set(group_list)
 
-    def __init__(self, model_path, tile_size=512):
-        self.tile_size = tile_size
-        self.transform = default_transform()
+    for group in groups:
+        print(group)
+        (pred_path / group / 'source').mkdir(parents=True, exist_ok=True)
+        (pred_path / group / 'mask').mkdir(parents=True, exist_ok=True)
 
-        logger.info('Loading model...')
-        model = UNet11(pretrained=False)
-        state = torch.load(open(model_path, 'rb'), map_location=device)
-        model.load_state_dict(state)
-        self.model = model.to(device)
+    for group in groups:
+        print(group)
+        inds = np.arange(group_list.shape[0])[group_list == group]
 
-    def predict_mask(self, image_path, threshold=None):
-        image = cv2.imread(str(image_path))
+        for i, idx in enumerate(inds):
+            group = group_list[idx]
+            image = image_list[idx]
+            pred_mask = pred_list[idx]
 
-        n_splits = get_n_splits(max(image.shape[:2]), self.tile_size)
-        full_size = n_splits * self.tile_size
-        image, (row_pad, col_pad) = pad_source_image(image, full_size)
-        tiles = slice_image(image, self.tile_size)
-
-        image_tensors = [img_to_tensor(self.transform(image=img)['image'])
-                         for img in tiles]
-
-        logger.info(f'Predicting mask for {image_path}...')
-        pred_outputs = []
-        with torch.no_grad():
-            self.model.eval()
-            for inputs in image_tensors:
-                inputs = torch.unsqueeze(inputs, dim=0).to(device)
-                outputs = torch.sigmoid(self.model(inputs))
-                if threshold:
-                    outputs = outputs > threshold
-                pred_outputs.append(outputs)
-        pred_outputs = torch.squeeze(torch.cat(pred_outputs))
-        pred_outputs = pred_outputs.detach().cpu().numpy()
-
-        pred_mask = combine_tiles(pred_outputs, self.tile_size, n_splits)
-        pred_mask = remove_padding(pred_mask, row_pad, col_pad)
-        logger.info('Done')
-        return pred_mask
+            image_path = pred_path / group / 'source' / f'{i:03}.png'
+            print(image_path)
+            cv2.imwrite(str(image_path), image)
+            # mask_uint8 = np.round(pred_mask * (2 ** 8 - 1)).astype(np.uint8)
+            mask_path = pred_path / group / 'mask' / f'{i:03}.png'
+            print(mask_path)
+            cv2.imwrite(str(mask_path), pred_mask)
