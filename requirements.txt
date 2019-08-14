@@ -1,11 +1,11 @@
-cv2
+opencv-python
 numpy
 matplotlib
 albumentations
 scikit-learn
 pandas
 torch
-torchvision
+torchvision==0.2.2
 ipykernel
 tensorboardX
 tensorboard

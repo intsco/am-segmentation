@@ -25,15 +25,22 @@ def convert_to_image(array):
 
 
 def plot_images_row(images, titles=None):
-    n = min(len(images), 4)
-    fig, axes = plt.subplots(1, n, figsize=(16, 8))
-    for i in range(n):
-        image = convert_to_image(images[i])
+
+    def plot(axis, image, title=None):
+        image = convert_to_image(image)
         if image.ndim > 2:
             image = image[0]
-        axes[i].imshow(image)
-        if titles:
-            axes[i].set_title(titles[i])
+        axis.imshow(image)
+        if title:
+            axis.set_title(title)
+
+    n = min(len(images), 4)
+    fig, axes = plt.subplots(1, n, figsize=(16, 8))
+    if type(axes) == list:
+        for i in range(n):
+            plot(axes[i], images[i], titles[i] if titles else None)
+    else:
+        plot(axes, images[0], titles[0] if titles else None)
     return fig
 
 
