@@ -10,7 +10,7 @@ import torch.nn as nn
 import segmentation_models_pytorch as smp
 from albumentations.pytorch.functional import img_to_tensor
 
-from am_segm.dataset import valid_transform
+from am.segm.dataset import valid_transform
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)

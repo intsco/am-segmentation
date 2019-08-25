@@ -1,6 +1,6 @@
 import argparse
 from pathlib import Path
-from am_segm.preprocess import stitch_tiles_at_path
+from am.segm.preprocess import stitch_tiles_at_path
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
@@ -10,5 +10,4 @@ if __name__ == '__main__':
 
     input_path = Path(args.input)
     meta_path = input_path.parent / 'source_tiles'
-
     stitch_tiles_at_path(input_path, meta_path, args.overwrite)

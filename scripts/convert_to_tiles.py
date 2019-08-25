@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from am_segm.preprocess import slice_to_tiles
+from am.segm.preprocess import slice_to_tiles
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
