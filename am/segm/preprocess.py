@@ -6,8 +6,8 @@ import json
 import cv2
 from albumentations import CenterCrop
 
-from am_segm.image_utils import pad_slice_image, compute_tile_row_col_n, stitch_tiles
-from am_segm.utils import read_image, clean_dir
+from am.segm.image_utils import pad_slice_image, compute_tile_row_col_n, stitch_tiles
+from am.segm.utils import read_image, clean_dir
 
 
 def slice_to_tiles(input_data_path, overwrite=False):
