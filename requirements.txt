@@ -10,3 +10,4 @@ ipykernel
 tensorboardX
 tensorboard
 segmentation-models-pytorch
+boto3
