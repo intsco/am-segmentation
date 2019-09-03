@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from shutil import rmtree
 
@@ -6,6 +7,8 @@ import numpy as np
 import torch
 from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
+
+logger = logging.getLogger('am-segm')
 
 
 def read_image(path):
@@ -58,7 +61,7 @@ def plot_overlay(image, mask, figsize=(10, 10)):
 
 def overlay_images_with_masks(path, image_ext='png'):
     for group_path in path.iterdir():
-        print(f'Overlaying: {group_path}')
+        logger.info(f'Overlaying: {group_path}')
         mask = read_image(str(group_path / f'mask.{image_ext}'))
         image = read_image(str(group_path / f'source.{image_ext}'))
         assert image.shape == mask.shape
@@ -66,10 +69,3 @@ def overlay_images_with_masks(path, image_ext='png'):
         fig = plot_overlay(image, mask)
         plt.savefig(group_path / f'overlay.{image_ext}', dpi=600, bbox_inches='tight')
         plt.close()
-
-
-def clean_dir(path):
-    rmtree(path, ignore_errors=True)
-    Path(path).mkdir(parents=True)
-
-

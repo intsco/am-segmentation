@@ -81,14 +81,13 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
         enum34 \
         pyyaml \
         typing \
-    	torch \
         && \
-    $PIP_INSTALL \
-    "git+https://github.com/pytorch/vision.git" && \
-    $PIP_INSTALL \
-        torch_nightly -f \
-        https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html \
-        && \
+#    $PIP_INSTALL \
+#    "git+https://github.com/pytorch/vision.git" && \
+#    $PIP_INSTALL \
+#        torch_nightly -f \
+#        https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html \
+#        && \
 
 # ==================================================================
 # config & cleanup
@@ -105,8 +104,8 @@ RUN pip install -r /requirements.txt
 
 COPY unet.pt /model/unet.pt
 
-ADD am /am
-ADD ecs/main.py /main.py
+COPY am /am
+COPY ecs/main.py /main.py
 RUN chmod +x /main.py
 
 CMD ["/main.py"]

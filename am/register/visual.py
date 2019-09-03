@@ -3,7 +3,13 @@ from matplotlib import colors
 import matplotlib.patches as patches
 import numpy as np
 
-from am_registration.utils import min_max
+
+def min_max(a):
+    return a.min(), a.max()
+
+
+def cut_patch(image, y_offset=0, x_offset=0, patch=1000):
+    return image[y_offset:y_offset+patch, x_offset:x_offset+patch]
 
 
 def plot_image(image, figsize=(16, 10), **kwargs):
@@ -51,11 +57,19 @@ def plot_image_label_overlay(image, target_axis, axis_coords, labels, uniq_label
     plot_labels(image, ax, target_axis, axis_coords, labels, uniq_labels)
 
 
-def cut_patch(image, y_offset=0, x_offset=0, patch=1000):
-    return image[y_offset:y_offset+patch, x_offset:x_offset+patch]
+def shift_center_coords(centers, indices, row_offset, col_offset, patch_size):
+    mask = (row_offset < centers[:, 0]) & (centers[:, 0] < row_offset + patch_size) &\
+           (col_offset < centers[:, 1]) & (centers[:, 1] < col_offset + patch_size)
+    shifted_centers = centers[mask]
+    shifted_centers[:, 0] -= row_offset
+    shifted_centers[:, 1] -= col_offset
+    return shifted_centers, indices[mask]
 
 
-def plot_am_labels(image, centers, labels):
+def plot_am_labels(image, centers, labels, row_offset=None, col_offset=None, patch_size=None):
+    if patch_size:
+        centers, labels = shift_center_coords(centers, labels, row_offset, col_offset, patch_size)
+
     ax = plot_image(image, figsize=(10, 10))
     ys, xs = zip(*centers)
     ax.scatter(xs, ys, color='blue', s=5)

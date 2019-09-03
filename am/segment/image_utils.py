@@ -35,7 +35,9 @@ def pad_slice_image(image, tile_size, target_size):
 
 
 def stitch_tiles(tiles, tile_size, tile_row_n, tile_col_n):
-    image = np.zeros((tile_size * tile_row_n, tile_size * tile_col_n))
+    image = np.zeros(
+        (tile_size * tile_row_n, tile_size * tile_col_n), dtype=np.uint8
+    )
     for i in range(tile_row_n):
         for j in range(tile_col_n):
             tile = tiles[i * tile_col_n + j]
