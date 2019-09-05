@@ -1,6 +1,6 @@
 import logging
 import os
-from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 from time import time, sleep
 from collections import Counter
 
@@ -20,57 +20,50 @@ sqs = boto3.client('sqs')
 ecs = boto3.client('ecs')
 logger = logging.getLogger('am-segm')
 
-INFERENCE_BATCH_SIZE = 8
+INFERENCE_BATCH_SIZE = 4
 
 
-def upload_images_to_s3(local_inputs_dir, bucket, prefix, queue_url=None):
-    logger.info(
-        f'Uploading files from {local_inputs_dir} to s3://{bucket}/{prefix}'
-    )
+def upload_images_to_s3(local_paths, bucket, s3_paths, queue_url=None):
+    logger.info(f'Uploading {len(local_paths)} files to s3://{bucket}')
 
-    uploaded_paths = []
-    for file_path in local_inputs_dir.iterdir():
-        s3_file_path = f'{prefix}/{file_path.name}'
-        uploaded_paths.append(s3_file_path)
-
-        logger.debug(f'Uploading {file_path} to s3://{bucket}/{s3_file_path}')
-        s3.upload_file(str(file_path), bucket, s3_file_path)
+    def upload(args):
+        local_path, s3_path = args
+        logger.debug(f'Uploading {local_path} to s3://{bucket}/{s3_path}')
+        s3.upload_file(str(local_path), bucket, s3_path)
 
         if queue_url:
-            logger.debug(f'Sending message to queue: {s3_file_path}')
-            sqs.send_message(QueueUrl=queue_url, MessageBody=s3_file_path)
+            logger.debug(f'Sending message to queue: {s3_path}')
+            sqs.send_message(QueueUrl=queue_url, MessageBody=s3_path)
 
-    logger.info(f'Uploaded {len(uploaded_paths)} files')
-    return uploaded_paths
+    with ThreadPoolExecutor() as executor:
+        list(executor.map(upload, zip(local_paths, s3_paths)))
 
 
 def consume_messages(queue_url, n=8):
     receipt_handles = []
     input_paths = []
     for i in range(n):
-        response = sqs.receive_message(QueueUrl=queue_url, MaxNumberOfMessages=1)
-        logger.debug(f"Round: {i}, messages: {len(response.get('Messages', []))}")
-        for message in response.get('Messages', []):
-            input_paths.append(Path(message['Body']))
+        resp = sqs.receive_message(QueueUrl=queue_url, MaxNumberOfMessages=1)
+        logger.debug(f"Round: {i}, messages: {len(resp.get('Messages', []))}")
+        for message in resp.get('Messages', []):
+            input_paths.append(message['Body'])
             receipt_handles.append(message['ReceiptHandle'])
 
     return input_paths, receipt_handles
 
 
-def download_images_from_s3(bucket, input_paths, local_dir):
-    logger.info(
-        (f'Downloading {len(input_paths)} files '
-         f'from s3://{bucket} to {local_dir}')
-    )
-    local_dir.mkdir(parents=True, exist_ok=True)
+def download_images_from_s3(bucket, s3_paths, local_paths):
+    logger.info(f'Downloading {len(s3_paths)} files from s3://{bucket}')
 
-    local_paths = []
-    for input_path in input_paths:
-        local_path = local_dir / Path(input_path).name
-        local_paths.append(local_path)
-        logger.debug(f'Downloading {input_path} to {local_path}')
-        s3.download_file(bucket, str(input_path), str(local_path))
-    return local_paths
+    def download(args):
+        s3_path, local_path = args
+        if not local_path.parent.exists():
+            local_path.parent.mkdir(parents=True)
+        logger.debug(f'Downloading {s3_path} to {local_path}')
+        s3.download_file(bucket, str(s3_path), str(local_path))
+
+    with ThreadPoolExecutor() as executor:
+        list(executor.map(download, zip(s3_paths, local_paths)))
 
 
 def remove_images_from_s3(bucket, prefix):
@@ -123,14 +116,15 @@ def predict(model, image_paths):
         return masks
 
 
-def save_predictions(input_paths, predictions, local_dir):
-    for input_path, pred in zip(input_paths, predictions):
-        file_path = local_dir / input_path.name
-        file_path.parent.mkdir(parents=True, exist_ok=True)
+def save_predictions(predictions, output_paths):
+    logger.info(f'Saving {len(predictions)}')
+    for pred, output_path in zip(predictions, output_paths):
+        if not output_path.parent.exists():
+            output_path.parent.mkdir(parents=True)
         image = pred * 255
-        logger.debug(f'Saving prediction: {image.shape} to {file_path}')
-        res = cv2.imwrite(str(file_path), image)
-        assert res, f'Failed to save {file_path}'
+        logger.debug(f'Saving prediction: {image.shape} to {output_path}')
+        res = cv2.imwrite(str(output_path), image)
+        assert res, f'Failed to save {output_path}'
 
 
 def delete_messages(queue_url, receipt_handles):
@@ -141,12 +135,23 @@ def delete_messages(queue_url, receipt_handles):
 
 
 def list_images_on_s3(bucket, prefix):
-    resp = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
-    return [doc['Key'] for doc in resp.get('Contents', [])]
+    keys = []
+    kwargs = dict(Bucket=bucket, Prefix=prefix)
+    while True:
+        resp = s3.list_objects_v2(**kwargs)
+        for doc in resp.get('Contents', []):
+            keys.append(doc['Key'])
+
+        if resp.get('IsTruncated', False):
+            kwargs['ContinuationToken'] = resp['NextContinuationToken']
+        else:
+            break
+    return keys
 
 
 @time_it
-def run_wait_for_inference_task(stop_callback, task_n=2, sleep_interval=10, timeout=300):
+def run_wait_for_inference_task(task_config, stop_callback, sleep_interval=10, timeout=300):
+    task_n = task_config.pop('count')
     assert 0 < task_n <= 20
     ecs_max_task_n = 10
 
@@ -155,23 +160,7 @@ def run_wait_for_inference_task(stop_callback, task_n=2, sleep_interval=10, time
         ecs_task_n = min(task_n, ecs_max_task_n)
 
         logger.info(f'Running {ecs_task_n} tasks in ECS')
-        resp = ecs.run_task(
-            cluster='am-segm',
-            taskDefinition='am-segm-batch',
-            count=ecs_task_n,
-            launchType='FARGATE',
-            networkConfiguration={
-                'awsvpcConfiguration': {
-                    'subnets': [
-                        'subnet-2619c87f',  # eu-west-1a availability zone in SM VPC
-                    ],
-                    'securityGroups': [
-                        'sg-73462d16',  # default in SM VPC
-                    ],
-                    'assignPublicIp': 'ENABLED'
-                }
-            }
-        )
+        resp = ecs.run_task(count=ecs_task_n, **task_config)
         task_arns += [t['taskArn'] for t in resp['tasks']]
         task_n -= ecs_task_n
         if task_n > 0:

@@ -102,7 +102,7 @@ WORKDIR /
 COPY requirements.txt /requirements.txt
 RUN pip install -r /requirements.txt
 
-COPY unet.pt /model/unet.pt
+COPY model/unet.pt /model/unet.pt
 
 COPY am /am
 COPY ecs/main.py /main.py

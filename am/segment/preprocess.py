@@ -18,6 +18,13 @@ def slice_to_tiles(input_data_path, overwrite=False):
     logger.info('Converting images to tiles')
 
     tiles_path = input_data_path.parent / (input_data_path.stem + '_tiles')
+    if tiles_path.exists():
+        if overwrite:
+            clean_dir(tiles_path)
+        else:
+            logger.info('Tiles already exist. Skipping')
+            return
+
     tiles_path.mkdir(parents=True, exist_ok=True)
 
     image_paths = []

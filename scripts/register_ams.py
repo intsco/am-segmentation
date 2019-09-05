@@ -1,10 +1,8 @@
 import argparse
 from pathlib import Path
 
-import numpy as np
-
 from am.logger import init_logger
-from am.register import load_mask, register_ablation_marks, export_am_coordinates
+from am.register import register_ablation_marks
 
 
 if __name__ == '__main__':

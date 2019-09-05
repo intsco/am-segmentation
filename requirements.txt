@@ -11,3 +11,4 @@ tensorboardX
 tensorboard
 segmentation-models-pytorch
 boto3
+pyyaml

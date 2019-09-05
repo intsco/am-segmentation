@@ -8,6 +8,7 @@ logger = logging.getLogger('am-segm')
 
 
 def clean_dir(path):
+    logger.info(f'Cleaning up {path} directory')
     rmtree(path, ignore_errors=True)
     Path(path).mkdir(parents=True)
 
