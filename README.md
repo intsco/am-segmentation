@@ -1,52 +1,78 @@
 # Introduction
 A model with U-Net like architecture for semantic segmentation of
 imaging mass spectrometry ablation marks on microscopy images.
-The model is based on [TernausNet](https://github.com/ternaus/TernausNet)
-and [https://arxiv.org/abs/1801.05746](https://arxiv.org/abs/1801.05746)
+The models are based on [TernausNet](https://github.com/ternaus/TernausNet)
+and [segmentation_models.pytorch](https://github.com/qubvel/segmentation_models.pytorch)
 
-Example of model segmentation results
+Image segmentation results:
+![](images/image-segm-1.png)
+![](images/image-segm-2.png)
+![](images/image-segm-3.png)
 
-![](images/ablation-marks.png)
+# Data
+The model training was done on a wide range of different images obtained from 
+microscopy of samples after acquisition with imaging mass spectrometry.
 
-# Setup
-To explore the segmentation model training Jupyter notebook:
-* Create and activate conda environment using `environment-gpu.yml` file
-* Spin up Jupyter server and open `unet.ipynb` notebook
-
-To use the API built for image segmentation:
-* Create and activate conda environment using `environment-cpu.yml` file
-* Install `redis-server` to use it as a queue for segmentation tasks
-* Spin up `gunicorn` to serve the REST API
+Sample data can be downloaded from AWS S3 using
 ```
-gunicorn --reload 'api.app:get_app()'
+wget https://am-segm.s3-eu-west-1.amazonaws.com/post-MALDI-IMS-microscopy.tar.gz
 ```
-* The API will be available on localhost:8000
 
-# Docker
+It is important to notice that usually these microscopy images are quite large, e.g.
+5000x5000 pixels. As most of the segmentation networks are not designed for images
+of such resolution, additional steps for image slicing and stitching
+have to be added to the pipeline.   
 
-Build image
+# Training
+
+The best performing model turned to be U-net with
+[ResNeXt-50 (32x4d)](https://arxiv.org/abs/1611.05431) as encoder from
+[segmentation_models.pytorch](https://github.com/qubvel/segmentation_models.pytorch)
+by Pavel Yakubovskiy
+
+### Pseudo-labeling
+
+As original data usually does not come with masks, a semi-supervised approach for
+getting image masks is used.
+* Fist a few small areas of the input image are selected and manually segmented
+* Simple and fast model with lots of regularisation to prevent overfitting is trained
+* The trained model is used to predict full mask for the image
+* The full mask for multiple images already can be used for more intensive training
+of a bigger model
+
+### Notebooks
+
+To explore the model training Jupyter notebook:
+* Install dependencies `pip install -r requirements.txt`
+* Spin up Jupyter server and open `pytorch-unet.ipynb` notebook
+
+# Inference
+
+### AWS Elastic Container Service
+
+* Build a Docker image from `ecs` directory and push it to an image repository
+* Create a ECS task definition, input and output S3 buckets, and an AWS SQS queue
+* Create `config/config.yml` file from template.
+Put all required configuration variables there
+* Start the segmentation pipeline
+```
+python am/pipeline data/inference/dataset --rows 50 --cols 50
+```
+
+### AWS SageMaker
+
+* Build a Docker image from `sagemaker` directory and push it to the AWS container repository
+* Upload model file to an S3 bucket
+* Create a SageMaker batch job using `sagemaker-batch-job-example.py` 
+
+### Simple API in Docker
+
+* Build image and start container
 ```
 docker build -t am-segm -f docker/Dockerfile .
-```
-
-Run container
-```
 docker run -d -p 8000:8000 --name am-segm am-segm
 ```
 
-Get inside container
-```
-docker exec -it am-segm /bin/bash
-```
-
-Destroy container
-```
-docker rm --force am-segm
-```
-
-# Using API
-
-* Spin up gunicorn
 * Submit a segmentation task
 ```
 http POST localhost:8000/tasks Content-Type:image/png < api-use/source_small.png
