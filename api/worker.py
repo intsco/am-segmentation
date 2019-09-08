@@ -6,7 +6,7 @@ from time import sleep
 import redis
 
 from segmentation.inference import SegmentationModel
-from utils import logger, save_status
+from api.utils import logger, save_status
 
 
 def save_mask(mask, path):

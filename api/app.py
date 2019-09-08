@@ -4,7 +4,7 @@ import falcon
 
 from api.resources import AblationMask, SegmentationTask, SegmentationTaskCollection
 from api.task_manager import TaskManager
-from utils import logger
+from api.utils import logger
 
 DEFAULT_DATA_PATH = './data/tasks'
 

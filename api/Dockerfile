@@ -29,4 +29,4 @@ COPY . /app/
 EXPOSE 8000
 
 ENTRYPOINT [ ]
-CMD [ "/app/start-api.sh" ]
+CMD [ "/app/start-all.sh" ]
