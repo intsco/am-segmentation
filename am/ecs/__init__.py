@@ -58,7 +58,7 @@ def download_images_from_s3(bucket, s3_paths, local_paths):
     def download(args):
         s3_path, local_path = args
         if not local_path.parent.exists():
-            local_path.parent.mkdir(parents=True)
+            local_path.parent.mkdir(parents=True, exist_ok=True)
         logger.debug(f'Downloading {s3_path} to {local_path}')
         s3.download_file(bucket, str(s3_path), str(local_path))
 
@@ -71,8 +71,8 @@ def remove_images_from_s3(bucket, prefix):
     boto3.resource('s3').Bucket(bucket).objects.filter(Prefix=prefix).delete()
 
 
-def load_model(model_dir):
-    logger.info(f'Loading model from "{model_dir}"')
+def load_model(model_path):
+    logger.info(f'Loading model from "{model_path}"')
 
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     model = smp.Unet(encoder_name='se_resnext50_32x4d',
@@ -81,7 +81,7 @@ def load_model(model_dir):
         logger.info("Gpu count: {}".format(torch.cuda.device_count()))
         model = nn.DataParallel(model)
 
-    with open(os.path.join(model_dir, 'unet.pt'), 'rb') as f:
+    with open(model_path, 'rb') as f:
         model.load_state_dict(torch.load(f, map_location=device))
     model.eval()
     return model.to(device)

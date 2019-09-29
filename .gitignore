@@ -106,3 +106,4 @@ venv.bak/
 data/
 *.pth
 /config/config.yml
+/model/

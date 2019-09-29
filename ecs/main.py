@@ -28,7 +28,7 @@ def run_inference():
     try:
         logger.info('Batch inference of AM images')
 
-        model = load_model('model')
+        model = load_model(os.environ['MODEL_PATH'])
 
         total_n = 0
         while True:
