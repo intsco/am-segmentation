@@ -6,9 +6,9 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 from segmentation_models_pytorch import Unet, FPN
 
-from am.segm.dataset import AMDataset, make_image_mask_dfs, train_transform, valid_transform
-from am.segm.loss import jaccard, CombinedLoss
-from am.segm.model import UNet11
+from am.segment.dataset import AMDataset, make_image_mask_dfs, train_transform, valid_transform
+from am.segment.loss import jaccard, CombinedLoss
+from am.segment.model import UNet11
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 

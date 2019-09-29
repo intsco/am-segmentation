@@ -8,8 +8,7 @@ import cv2
 from albumentations import CenterCrop
 
 from am.segment.image_utils import pad_slice_image, compute_tile_row_col_n, stitch_tiles
-from am.segment.utils import read_image
-from am.utils import clean_dir
+from am.utils import clean_dir, read_image
 
 logger = logging.getLogger('am-segm')
 

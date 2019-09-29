@@ -64,12 +64,18 @@ class AMDataset(Dataset):
     def __len__(self):
         return len(self.mask_df)
 
+    def _read_image(self, path, one_channel):
+        image = cv2.imread(str(path))
+        if one_channel:
+            image = image[:, :, :1]  # because ch0==ch1==ch2
+        return image
+
     def __getitem__(self, idx):
         image_path = self.image_df.iloc[idx].path
-        image = cv2.imread(str(image_path))
+        image = self._read_image(image_path, one_channel=False)
         mask_path = self.mask_df.iloc[idx].path
         if mask_path.exists():
-            mask = cv2.imread(str(mask_path))[:, :, :1].astype(np.float32)
+            mask = self._read_image(mask_path, one_channel=True)
         else:
             image_shape = image.shape[-2:]
             mask = np.zeros((1,) + image_shape)
@@ -102,7 +108,8 @@ def load_ds(data_path, transform, groups=None, size=None):
             image_df = pd.concat([image_df] * mult).head(size)
             mask_df = pd.concat([mask_df] * mult).head(size)
         else:
-            image_df = image_df.head(size)
-            mask_df = mask_df.head(size)
+            inds = np.random.choice(image_df.shape[0], size, replace=False)
+            image_df = image_df.iloc[inds]
+            mask_df = mask_df.iloc[inds]
 
     return AMDataset(image_df, mask_df, transform=transform)
