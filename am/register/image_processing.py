@@ -4,14 +4,43 @@ import cv2
 import numpy as np
 from scipy.sparse import coo_matrix
 
+from am.utils import min_max
+
 logger = logging.getLogger('am-segm')
 
 
 def erode_dilate(image, kernel=5):
     logger.info(f'Applying erosion and dilation')
     img = image.copy()
-    img = cv2.erode(img, np.ones((kernel, kernel), np.uint8), iterations=2)
+    img = cv2.erode(img, np.ones((kernel, kernel), np.uint8), iterations=1)
     img = cv2.dilate(img, np.ones((kernel, kernel), np.uint8), iterations=1)
+    return img
+
+
+def remove_noisy_marks(image):
+    logger.info('Removing noisy ablation marks')
+
+    def min_max_thr(image, target_axis):
+        axis_sum = image.sum(axis=int(not target_axis))
+        axis_sum_mean = np.mean(axis_sum)
+        axis_min_thr, axis_max_thr = min_max((axis_sum > axis_sum_mean).nonzero()[0])
+        return axis_min_thr, axis_max_thr
+
+    target_axis = 0
+    row_min_thr, row_max_thr = min_max_thr(image, target_axis)
+    logger.info(f'axis={target_axis}, min={row_min_thr}, max={row_max_thr}')
+
+    img = image.copy()
+    img[:row_min_thr - 10, :] = 0
+    img[row_max_thr + 10:, :] = 0
+
+    target_axis = 1
+    col_min_thr, col_max_thr = min_max_thr(image, target_axis)
+    logger.info(f'axis={target_axis}, min={col_min_thr}, max={col_max_thr}')
+
+    img[:, :col_min_thr - 10] = 0
+    img[:, col_max_thr + 10:] = 0
+
     return img
 
 
