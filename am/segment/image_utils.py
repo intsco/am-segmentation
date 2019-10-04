@@ -1,6 +1,13 @@
+import json
+import logging
+
 import cv2
 import numpy as np
 from albumentations import PadIfNeeded
+
+from am.utils import save_overlay
+
+logger = logging.getLogger('am-segm')
 
 
 def compute_tile_row_col_n(shape, tile_size):
@@ -44,3 +51,21 @@ def stitch_tiles(tiles, tile_size, tile_row_n, tile_col_n):
             image[i*tile_size:(i+1)*tile_size, j*tile_size:(j+1)*tile_size] = tile
     return image
 
+
+def overlay_tiles(group_path):
+    logger.debug(f'Overlaying images at {group_path} path')
+    (group_path / 'overlay').mkdir(exist_ok=True)
+    meta = json.load(open(group_path / 'meta.json'))
+    tile_n = meta['tile']['rows'] * meta['tile']['cols']
+
+    for i in range(tile_n):
+        image_fn = f'{i:03}.png'
+        logger.debug(f'Overlaying {image_fn}')
+
+        source_tile_path = group_path / 'source' / image_fn
+        source_tile = cv2.imread(str(source_tile_path), cv2.IMREAD_GRAYSCALE)
+
+        mask_tile_path = group_path / 'mask' / image_fn
+        mask_tile = cv2.imread(str(mask_tile_path), cv2.IMREAD_GRAYSCALE)
+
+        save_overlay(source_tile, mask_tile, path=group_path / 'overlay' / image_fn)

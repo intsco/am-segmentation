@@ -22,12 +22,14 @@ def plot_hist(ys, figsize=(10, 5)):
     ax.plot(np.arange(ys.shape[0]), ys)
 
 
-def rotate_image(image, angle):
+def rotate_image(image, angle, binarize=True):
     rows, cols = image.shape
     center = ((cols - 1)/2.0, (rows - 1)/2.0)
     rot_M = cv2.getRotationMatrix2D(center, angle, scale=1)
-    image = cv2.warpAffine(image.copy() / 255, rot_M, (cols, rows)).round()
-    image = (image * 255).astype(np.uint8)
+    image = cv2.warpAffine(image.copy(), rot_M, (cols, rows))
+    if binarize:
+        image[image < 255 / 2] = 0
+        image[image > 255 / 2] = 255
     return image
 
 

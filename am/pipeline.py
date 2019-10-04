@@ -10,7 +10,7 @@ import yaml
 from am.logger import init_logger
 from am.register import register_ablation_marks
 from am.segment.preprocess import slice_to_tiles, stitch_tiles_at_path
-from am.utils import overlay_images_with_masks, time_it
+from am.utils import time_it, read_image, plot_overlay, save_overlay
 
 from am.ecs import (
     upload_images_to_s3,
@@ -63,6 +63,15 @@ def download_from_s3(s3_paths, data_path):
     download_images_from_s3(
         bucket=config['aws']['output_bucket'], s3_paths=s3_paths, local_paths=local_output_paths
     )
+
+
+def overlay_images_with_masks(path, image_ext='png'):
+    for group_path in path.iterdir():
+        logger.info(f'Overlaying: {group_path}')
+        source = read_image(str(group_path / f'source.{image_ext}'))
+        mask = read_image(str(group_path / f'mask.{image_ext}'))
+        assert source.shape == mask.shape
+        save_overlay(source, mask, path=group_path / f'overlay.{image_ext}')
 
 
 def register_ablation_marks_at_path(data_path, acq_grid_shape):

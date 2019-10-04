@@ -17,7 +17,7 @@ def erode_dilate(image, kernel=5):
     return img
 
 
-def remove_noisy_marks(image):
+def remove_noisy_marks(image, acq_grid_shape):
     logger.info('Removing noisy ablation marks')
 
     def min_max_thr(image, target_axis):
@@ -31,15 +31,17 @@ def remove_noisy_marks(image):
     logger.info(f'axis={target_axis}, min={row_min_thr}, max={row_max_thr}')
 
     img = image.copy()
-    img[:row_min_thr - 10, :] = 0
-    img[row_max_thr + 10:, :] = 0
+    half_am_dist = int((row_max_thr - row_min_thr) / acq_grid_shape[target_axis] / 2)
+    img[:row_min_thr - half_am_dist, :] = 0
+    img[row_max_thr + half_am_dist:, :] = 0
 
     target_axis = 1
     col_min_thr, col_max_thr = min_max_thr(image, target_axis)
     logger.info(f'axis={target_axis}, min={col_min_thr}, max={col_max_thr}')
 
-    img[:, :col_min_thr - 10] = 0
-    img[:, col_max_thr + 10:] = 0
+    half_am_dist = int((col_max_thr - col_min_thr) / acq_grid_shape[target_axis] / 2)
+    img[:, :col_min_thr - half_am_dist] = 0
+    img[:, col_max_thr + half_am_dist:] = 0
 
     return img
 
@@ -51,9 +53,10 @@ def find_am_centers(image):
     am_centers = []
     for c in contours:
         M = cv2.moments(c)
-        x = int(M["m10"] / M["m00"])
-        y = int(M["m01"] / M["m00"])
-        am_centers.append((y, x))
+        if M["m00"]:
+            x = int(M["m10"] / M["m00"])
+            y = int(M["m01"] / M["m00"])
+            am_centers.append((y, x))
 
     return np.array(am_centers, ndmin=2)
 

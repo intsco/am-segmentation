@@ -64,7 +64,7 @@ def register_ablation_marks(
     mask = rotate_image(mask, best_angle)
 
     mask = erode_dilate(mask)
-    mask = remove_noisy_marks(mask)
+    mask = remove_noisy_marks(mask, acq_grid_shape)
     am_centers = find_am_centers(mask)
 
     target_axis = 0  # target axis: (1 = columns = X-axis, 0 = rows = Y-axis)
