@@ -7,7 +7,7 @@ from pathlib import Path
 from am.ecs import (
     consume_messages,
     download_images_from_s3,
-    load_model, predict,
+    predict,
     save_predictions,
     upload_images_to_s3,
     delete_messages,
@@ -15,7 +15,7 @@ from am.ecs import (
     time_it,
 )
 from am.logger import init_logger
-from am.utils import clean_dir
+from am.utils import clean_dir, load_model
 
 local_inputs_dir = Path('/tmp/inputs')
 local_outputs_dir = Path('/tmp/outputs')

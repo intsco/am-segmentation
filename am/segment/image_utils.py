@@ -55,8 +55,7 @@ def stitch_tiles(tiles, tile_size, tile_row_n, tile_col_n):
 def overlay_tiles(group_path):
     logger.debug(f'Overlaying images at {group_path} path')
     (group_path / 'overlay').mkdir(exist_ok=True)
-    meta = json.load(open(group_path / 'meta.json'))
-    tile_n = meta['tile']['rows'] * meta['tile']['cols']
+    tile_n = sum(1 for _ in (group_path / 'source').iterdir())
 
     for i in range(tile_n):
         image_fn = f'{i:03}.png'

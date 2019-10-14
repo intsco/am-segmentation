@@ -77,8 +77,7 @@ class AMDataset(Dataset):
         if mask_path.exists():
             mask = self._read_image(mask_path, one_channel=True)
         else:
-            image_shape = image.shape[-2:]
-            mask = np.zeros((1,) + image_shape)
+            mask = np.zeros_like(image)[:, :, :1]
 
         if self.transform:
             augmented = self.transform(image=image, mask=mask)

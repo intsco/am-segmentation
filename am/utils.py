@@ -5,6 +5,9 @@ from shutil import rmtree
 from time import time
 
 import cv2
+import torch
+import torch.nn as nn
+import segmentation_models_pytorch as smp
 from matplotlib import pyplot as plt
 import numpy as np
 from matplotlib.transforms import Bbox
@@ -59,3 +62,19 @@ def save_overlay(source, mask, path, dpi=100):
     ax.axis('off')
     plt.savefig(path, bbox_inches=Bbox([[0, 0], plot_size_in]))
     plt.close()
+
+
+def load_model(model_path):
+    logger.info(f'Loading model from "{model_path}"')
+
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    model = smp.Unet(encoder_name='se_resnext50_32x4d',
+                     encoder_weights=None, decoder_use_batchnorm=True)
+    if torch.cuda.device_count() > 1:
+        logger.info("Gpu count: {}".format(torch.cuda.device_count()))
+        model = nn.DataParallel(model)
+
+    with open(model_path, 'rb') as f:
+        model.load_state_dict(torch.load(f, map_location=device))
+    model.eval()
+    return model.to(device)
