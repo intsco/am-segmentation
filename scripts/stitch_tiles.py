@@ -13,5 +13,5 @@ if __name__ == '__main__':
     init_logger()
 
     input_path = Path(args.input)
-    meta_path = input_path.parent / 'source_tiles'
-    stitch_tiles_at_path(input_path, meta_path, args.overwrite, 'tiff')
+    meta_path = input_path.parent / 'tiles_stitched'
+    stitch_tiles_at_path(input_path, args.overwrite, 'tiff')

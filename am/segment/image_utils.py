@@ -1,5 +1,6 @@
-import json
+import os
 import logging
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -52,19 +53,27 @@ def stitch_tiles(tiles, tile_size, tile_row_n, tile_col_n):
     return image
 
 
-def overlay_tiles(group_path):
-    logger.debug(f'Overlaying images at {group_path} path')
-    (group_path / 'overlay').mkdir(exist_ok=True)
-    tile_n = sum(1 for _ in (group_path / 'source').iterdir())
+def overlay_tiles(input_path):
+    logger.info(f'Overlaying images at {input_path}')
 
-    for i in range(tile_n):
-        image_fn = f'{i:03}.png'
-        logger.debug(f'Overlaying {image_fn}')
+    source_path, mask_path, overlay_path = [
+        input_path / img_type for img_type in ['source', 'mask', 'overlay']
+    ]
 
-        source_tile_path = group_path / 'source' / image_fn
-        source_tile = cv2.imread(str(source_tile_path), cv2.IMREAD_GRAYSCALE)
+    if source_path.exists() and source_path.exists():
+        overlay_path.mkdir(exist_ok=True)
+        tile_n = sum(1 for _ in source_path.iterdir())
+        for i in range(tile_n):
+            image_fn = f'{i:03}.png'
+            logger.debug(f'Overlaying {image_fn}')
 
-        mask_tile_path = group_path / 'mask' / image_fn
-        mask_tile = cv2.imread(str(mask_tile_path), cv2.IMREAD_GRAYSCALE)
+            source_tile_path = source_path / image_fn
+            source_tile = cv2.imread(str(source_tile_path), cv2.IMREAD_GRAYSCALE)
 
-        save_overlay(source_tile, mask_tile, path=group_path / 'overlay' / image_fn)
+            mask_tile_path = mask_path / image_fn
+            mask_tile = cv2.imread(str(mask_tile_path), cv2.IMREAD_GRAYSCALE)
+
+            save_overlay(source_tile, mask_tile, path=overlay_path / image_fn)
+    else:
+        for subdir_path in Path(input_path).iterdir():
+            overlay_tiles(subdir_path)

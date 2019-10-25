@@ -9,8 +9,9 @@ if __name__ == '__main__':
     parser.add_argument('input', type=str)
     parser.add_argument('--overwrite', dest='overwrite', action='store_true')
     args = parser.parse_args()
-    input_path = Path(args.input)
 
     init_logger()
 
-    slice_to_tiles(input_path, args.overwrite)
+    input_path = Path(args.input)
+    output_path = input_path.parent / 'tiles'
+    slice_to_tiles(input_path, output_path, args.overwrite)

@@ -5,11 +5,13 @@ from am.logger import init_logger
 from am.segment.image_utils import overlay_tiles
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='')
+    parser = argparse.ArgumentParser()
     parser.add_argument(
-        'path', type=str, help='Path to directory with source and mask subdirectories'
+        'input',
+        type=str,
+        help='Path to directory that contains source and mask tiles at some level of depth'
     )
     args = parser.parse_args()
 
     init_logger()
-    overlay_tiles(Path(args.path))
+    overlay_tiles(Path(args.input))
