@@ -102,8 +102,6 @@ WORKDIR /
 COPY requirements.txt /requirements.txt
 RUN pip install -r /requirements.txt
 
-COPY model /model
-
 COPY am /am
 COPY ecs/main.py /main.py
 RUN chmod +x /main.py

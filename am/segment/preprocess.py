@@ -8,7 +8,7 @@ import cv2
 from albumentations import CenterCrop
 
 from am.segment.image_utils import pad_slice_image, compute_tile_row_col_n, stitch_tiles
-from am.utils import clean_dir, read_image
+from am.utils import clean_dir, read_image, save_overlay
 
 logger = logging.getLogger('am-segm')
 
@@ -101,3 +101,12 @@ def stitch_tiles_at_path(input_path, overwrite=False, image_ext='png'):
                 stitched_image_path = stitched_group_path / f'{image_type}.{image_ext}'
                 cv2.imwrite(str(stitched_image_path), stitched_image)
                 logger.info(f'Saved stitched image to {stitched_image_path}')
+
+
+def overlay_images_with_masks(input_path, image_ext='png'):
+    for group_path in input_path.iterdir():
+        logger.info(f'Overlaying images at {input_path}')
+        source = read_image(str(group_path / f'source.{image_ext}'))
+        mask = read_image(str(group_path / f'mask.{image_ext}'))
+        assert source.shape == mask.shape
+        save_overlay(source, mask, path=group_path / f'overlay.{image_ext}')

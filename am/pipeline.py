@@ -9,7 +9,7 @@ import yaml
 
 from am.logger import init_logger
 from am.register import register_ablation_marks
-from am.segment.preprocess import slice_to_tiles, stitch_tiles_at_path
+from am.segment.preprocess import slice_to_tiles, stitch_tiles_at_path, overlay_images_with_masks
 from am.utils import time_it, read_image, plot_overlay, save_overlay
 
 from am.ecs import (
@@ -48,13 +48,12 @@ def run_inference(s3_paths, prefix, matrix):
         return len(pred_s3_paths) == len(s3_paths)
 
     def set_container_environment(task_config, matrix):
+        model_path = f's3://{config["aws"]["model_bucket"]}/model/unet-{matrix.lower()}.pt'
         task_config['overrides'] = {
             'containerOverrides': [
                 {
                     'name': 'am-segm-batch',
-                    'environment': [
-                        {'name': 'MODEL_PATH', 'value': f'model/unet-{matrix.lower()}.pt'}
-                    ]
+                    'environment': [{'name': 'MODEL_PATH', 'value': model_path}]
                 }
             ]
         }
@@ -78,23 +77,14 @@ def download_from_s3(s3_paths, data_path):
     )
 
 
-def overlay_images_with_masks(input_path, image_ext='png'):
-    for group_path in input_path.iterdir():
-        logger.info(f'Overlaying images at {input_path}')
-        source = read_image(str(group_path / f'source.{image_ext}'))
-        mask = read_image(str(group_path / f'mask.{image_ext}'))
-        assert source.shape == mask.shape
-        save_overlay(source, mask, path=group_path / f'overlay.{image_ext}')
-
-
 def register_ablation_marks_at_path(data_path, acq_grid_shape):
     for group_path in (data_path / 'source').iterdir():
         try:
             group = group_path.name
             register_ablation_marks(
                 source_path=data_path / 'source' / group / 'source.tiff',
-                mask_path=data_path / 'pseudo_tiles_stitched' / group / 'mask.tiff',
-                meta_path=data_path / 'source_tiles' / group / 'meta.json',
+                mask_path=data_path / 'tiles_stitched' / group / 'mask.tiff',
+                meta_path=data_path / 'tiles' / group / 'meta.json',
                 am_coord_path=data_path / 'am_coords' / group / 'am_coordinates.npy',
                 overlay_path=data_path / 'am_coords' / group / 'overlay.png',
                 acq_grid_shape=acq_grid_shape,
@@ -104,7 +94,7 @@ def register_ablation_marks_at_path(data_path, acq_grid_shape):
 
 
 @time_it
-def run_am_pipeline(data_path, acq_grid_shape, matrix):
+def run_am_pipeline(data_path, acq_grid_shape, matrix, register):
     slice_to_tiles(data_path / 'source', data_path / 'tiles')
 
     prefix = str(uuid4())
@@ -116,10 +106,10 @@ def run_am_pipeline(data_path, acq_grid_shape, matrix):
     remove_images_from_s3(config['aws']['output_bucket'], prefix)
 
     stitch_tiles_at_path(input_path=data_path / 'tiles', overwrite=True, image_ext='tiff')
-
     overlay_images_with_masks(data_path / 'tiles_stitched', image_ext='tiff')
 
-    register_ablation_marks_at_path(data_path, acq_grid_shape)
+    if register:
+        register_ablation_marks_at_path(data_path, acq_grid_shape)
 
 
 if __name__ == '__main__':
@@ -129,6 +119,7 @@ if __name__ == '__main__':
     parser.add_argument('--cols', type=int)
     parser.add_argument('--matrix', type=str)
     parser.add_argument('--debug', dest='debug', action='store_true')
+    parser.add_argument('--no-register', dest='register', action='store_false')
     args = parser.parse_args()
 
     init_logger(logging.DEBUG if args.debug else logging.INFO)
@@ -141,5 +132,6 @@ if __name__ == '__main__':
     run_am_pipeline(
         data_path=Path(args.data_path),
         acq_grid_shape=(args.rows, args.cols),
-        matrix=args.matrix
+        matrix=args.matrix,
+        register=args.register
     )

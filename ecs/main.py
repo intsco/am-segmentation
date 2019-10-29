@@ -4,6 +4,8 @@ import logging
 import os
 from pathlib import Path
 
+import boto3
+
 from am.ecs import (
     consume_messages,
     download_images_from_s3,
@@ -23,12 +25,18 @@ local_outputs_dir = Path('/tmp/outputs')
 logger = logging.getLogger('am-segm')
 
 
+def create_model():
+    logger.info(f'Downloading model from {os.environ["MODEL_PATH"]}')
+    bucket, key = os.environ['MODEL_PATH'].replace('s3://', '').split('/', 1)
+    boto3.client('s3').download_file(bucket, key, 'model.pt')
+    return load_model('model.pt')
+
+
 @time_it
 def run_inference():
     try:
         logger.info('Batch inference of AM images')
-
-        model = load_model(os.environ['MODEL_PATH'])
+        model = create_model()
 
         total_n = 0
         while True:

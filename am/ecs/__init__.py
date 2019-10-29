@@ -99,7 +99,7 @@ def predict(model, image_paths):
 
 
 def save_predictions(predictions, output_paths):
-    logger.info(f'Saving {len(predictions)}')
+    logger.info(f'Saving {len(predictions)} predictions')
     for pred, output_path in zip(predictions, output_paths):
         if not output_path.parent.exists():
             output_path.parent.mkdir(parents=True)
