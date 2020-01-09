@@ -13,6 +13,17 @@ from am.utils import clean_dir, read_image, save_overlay
 logger = logging.getLogger('am-segm')
 
 
+def rename_image(input_image_path):
+    out_image_stem = input_image_path.stem
+    if out_image_stem not in ['source', 'mask']:
+        out_image_stem = 'source'
+    output_image_path = input_image_path.parent / f'{out_image_stem}.tiff'
+    if input_image_path != output_image_path:
+        logger.info(f'Renaming image: {input_image_path} -> {output_image_path}')
+        os.rename(input_image_path, output_image_path)
+    return output_image_path
+
+
 def slice_to_tiles(input_path, output_path, overwrite=False):
     logger.info('Converting images to tiles')
 
@@ -28,7 +39,8 @@ def slice_to_tiles(input_path, output_path, overwrite=False):
     for root, dirs, files in os.walk(input_path):
         if not dirs:
             for f in files:
-                image_paths.append(Path(root) / f)
+                image_path = rename_image(Path(root) / f)
+                image_paths.append(image_path)
 
     tile_size = 512
     max_size = tile_size * 15
