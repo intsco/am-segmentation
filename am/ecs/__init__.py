@@ -1,5 +1,4 @@
 import logging
-import os
 from concurrent.futures import ThreadPoolExecutor
 from time import time, sleep
 from collections import Counter
@@ -13,9 +12,6 @@ from torch.utils.data import Dataset
 
 from am.utils import time_it
 
-s3 = boto3.client('s3')
-sqs = boto3.client('sqs')
-ecs = boto3.client('ecs')
 logger = logging.getLogger('am-segm')
 
 INFERENCE_BATCH_SIZE = 4
@@ -23,6 +19,8 @@ INFERENCE_BATCH_SIZE = 4
 
 def upload_images_to_s3(local_paths, bucket, s3_paths, queue_url=None):
     logger.info(f'Uploading {len(local_paths)} files to s3://{bucket}')
+    s3 = boto3.client('s3')
+    sqs = boto3.client('sqs')
 
     def upload(args):
         local_path, s3_path = args
@@ -38,6 +36,7 @@ def upload_images_to_s3(local_paths, bucket, s3_paths, queue_url=None):
 
 
 def consume_messages(queue_url, n=8):
+    sqs = boto3.client('sqs')
     receipt_handles = []
     input_paths = []
     for i in range(n):
@@ -52,6 +51,7 @@ def consume_messages(queue_url, n=8):
 
 def download_images_from_s3(bucket, s3_paths, local_paths):
     logger.info(f'Downloading {len(s3_paths)} files from s3://{bucket}')
+    s3 = boto3.client('s3')
 
     def download(args):
         s3_path, local_path = args
@@ -111,12 +111,14 @@ def save_predictions(predictions, output_paths):
 
 def delete_messages(queue_url, receipt_handles):
     logger.info(f'Deleting {len(receipt_handles)} messages from {queue_url}')
+    sqs = boto3.client('sqs')
     for handle in receipt_handles:
         sqs.delete_message(QueueUrl=queue_url,
                            ReceiptHandle=handle)
 
 
 def list_images_on_s3(bucket, prefix):
+    s3 = boto3.client('s3')
     keys = []
     kwargs = dict(Bucket=bucket, Prefix=prefix)
     while True:
@@ -133,6 +135,7 @@ def list_images_on_s3(bucket, prefix):
 
 @time_it
 def run_wait_for_inference_task(task_config, stop_callback, sleep_interval=10, timeout=300):
+    ecs = boto3.client('ecs')
     task_n = task_config.pop('count')
     assert 0 < task_n <= 20
     ecs_max_task_n = 10
