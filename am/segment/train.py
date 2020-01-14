@@ -6,7 +6,7 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 from segmentation_models_pytorch import Unet, FPN
 
-from am.segment.dataset import AMDataset, make_image_mask_dfs, train_transform, valid_transform
+from am.segment.dataset import AMDataset, create_image_mask_dfs, train_transform, valid_transform
 from am.segment.loss import jaccard, CombinedLoss
 from am.segment.model import UNet11
 
@@ -75,7 +75,7 @@ def train_loop(model, train_dl, valid_dl=None,
 if __name__ == '__main__':
     from sklearn.model_selection import GroupKFold
 
-    image_df, mask_df = make_image_mask_dfs(Path('data/tiles'))
+    image_df, mask_df = create_image_mask_dfs(Path('data/tiles'))
     cv = GroupKFold(n_splits=4)
     train_inds, valid_inds = next(cv.split(image_df, groups=image_df.group))
 

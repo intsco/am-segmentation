@@ -20,7 +20,7 @@ if __name__ == '__main__':
         groups = [p.name for p in (Path(args.ds_path) / 'tiles_stitched').iterdir()]
 
     for group in groups:
-        source_path = Path(args.ds_path) / 'source' / group / 'source.tiff'
+        source_path = Path(args.ds_path) / 'source_norm' / group / 'source.tiff'
         mask_path = Path(args.ds_path) / 'tiles_stitched' / group / 'mask.tiff'
         meta_path = Path(args.ds_path) / 'tiles' / group / 'meta.json'
         am_coord_path = Path(args.ds_path) / 'am_coords' / group / 'am_coordinates.npy'

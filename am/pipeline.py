@@ -9,7 +9,8 @@ import yaml
 
 from am.logger import init_logger
 from am.register import register_ablation_marks
-from am.segment.preprocess import slice_to_tiles, stitch_tiles_at_path, overlay_images_with_masks
+from am.segment.preprocess import slice_to_tiles, stitch_tiles_at_path, overlay_images_with_masks, \
+    normalize_source
 from am.utils import time_it, read_image, plot_overlay, save_overlay
 
 from am.ecs import (
@@ -82,7 +83,7 @@ def register_ablation_marks_at_path(data_path, acq_grid_shape):
         try:
             group = group_path.name
             register_ablation_marks(
-                source_path=data_path / 'source' / group / 'source.tiff',
+                source_path=data_path / 'source_norm' / group / 'source.tiff',
                 mask_path=data_path / 'tiles_stitched' / group / 'mask.tiff',
                 meta_path=data_path / 'tiles' / group / 'meta.json',
                 am_coord_path=data_path / 'am_coords' / group / 'am_coordinates.npy',
@@ -95,7 +96,8 @@ def register_ablation_marks_at_path(data_path, acq_grid_shape):
 
 @time_it
 def run_am_pipeline(data_path, acq_grid_shape, matrix, register):
-    slice_to_tiles(data_path / 'source', data_path / 'tiles')
+    normalize_source(data_path / 'source', data_path / 'source_norm', q1=1, q2=99)
+    slice_to_tiles(data_path / 'source_norm', data_path / 'tiles')
 
     prefix = str(uuid4())
     s3_paths = upload_to_s3(data_path / 'tiles', prefix)
@@ -124,7 +126,7 @@ if __name__ == '__main__':
 
     init_logger(logging.DEBUG if args.debug else logging.INFO)
 
-    config = yaml.load(open('config/config.yml'))
+    config = yaml.load(open('config/config.yml'), Loader=yaml.FullLoader)
     os.environ['AWS_ACCESS_KEY_ID'] = config['aws']['aws_access_key_id']
     os.environ['AWS_SECRET_ACCESS_KEY'] = config['aws']['aws_secret_access_key']
     os.environ['AWS_DEFAULT_REGION'] = config['aws']['aws_default_region']

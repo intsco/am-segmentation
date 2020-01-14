@@ -77,3 +77,11 @@ def overlay_tiles(input_path):
     else:
         for subdir_path in Path(input_path).iterdir():
             overlay_tiles(subdir_path)
+
+
+def normalize(img):
+    return np.uint8((img - img.min()) / (img.max() - img.min()) * 255)
+
+
+def clip(img, q1=1, q2=99):
+    return np.clip(img, a_min=np.percentile(img, q=q1), a_max=np.percentile(img, q=q2))

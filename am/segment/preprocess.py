@@ -7,7 +7,8 @@ import json
 import cv2
 from albumentations import CenterCrop
 
-from am.segment.image_utils import pad_slice_image, compute_tile_row_col_n, stitch_tiles
+from am.segment.image_utils import pad_slice_image, compute_tile_row_col_n, stitch_tiles, clip, \
+    normalize
 from am.utils import clean_dir, read_image, save_overlay
 
 logger = logging.getLogger('am-segm')
@@ -24,22 +25,29 @@ def rename_image(input_image_path):
     return output_image_path
 
 
-def slice_to_tiles(input_path, output_path, overwrite=False):
-    logger.info('Converting images to tiles')
+def normalize_source(input_path, output_path, q1=1, q2=99):
+    logger.info('Normalizing source images')
+    for group_path in input_path.iterdir():
+        for image_path in group_path.glob('*.tif*'):
+            if image_path.name != 'mask':
+                image = cv2.imread(str(image_path), cv2.IMREAD_GRAYSCALE)
+                image_norm = normalize(clip(image, q1, q2))
 
-    if output_path.exists():
-        if overwrite:
-            clean_dir(output_path)
-        else:
-            logger.info(f'{output_path} path already exists. Skipping')
-            return
-    output_path.mkdir(parents=True, exist_ok=True)
+                output_group_path = output_path / group_path.name
+                output_group_path.mkdir(parents=True, exist_ok=True)
+                image_norm_path = output_group_path / 'source.tiff'
+                logger.debug(f'Saving normalized image to {image_norm_path}')
+                cv2.imwrite(str(image_norm_path), image_norm)
+
+
+def slice_to_tiles(input_path, output_path):
+    logger.info('Converting images to tiles')
 
     image_paths = []
     for root, dirs, files in os.walk(input_path):
         if not dirs:
             for f in files:
-                image_path = rename_image(Path(root) / f)
+                image_path = Path(root) / f
                 image_paths.append(image_path)
 
     tile_size = 512

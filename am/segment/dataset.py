@@ -4,26 +4,11 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from torch.utils.data import Dataset
+import torch
+from torch.utils.data import Dataset, DataLoader
 import albumentations as albu
 from albumentations.pytorch.transforms import img_to_tensor
 import cv2
-
-
-def make_image_mask_dfs(data_path):
-    image_paths = defaultdict(list)
-    for group_path in data_path.iterdir():
-        # print(f'{group_path.name} group images collecting')
-        for image_path in sorted((group_path / 'source').glob('*.png')):
-            mask_path = group_path / 'mask' / image_path.name
-
-            image_paths['source'].append((group_path.name, image_path))
-            image_paths['mask'].append((group_path.name, mask_path))
-
-    image_df = pd.DataFrame(image_paths['source'], columns=['group', 'path'])
-    mask_df = pd.DataFrame(image_paths['mask'], columns=['group', 'path'])
-
-    return image_df, mask_df
 
 
 def default_transform(p=1):
@@ -57,9 +42,9 @@ def valid_transform(p=1):
 
 class AMDataset(Dataset):
     def __init__(self, image_df, mask_df, transform=None):
-        self.transform = transform
         self.image_df = image_df
         self.mask_df = mask_df
+        self.transform = transform
 
     def __len__(self):
         return len(self.mask_df)
@@ -94,8 +79,23 @@ class AMDataset(Dataset):
         return AMDataset(comb_image_df, comb_mask_df, self.transform)
 
 
-def load_ds(data_path, transform, groups=None, size=None):
-    image_df, mask_df = make_image_mask_dfs(Path(data_path))
+def create_image_mask_dfs(data_path):
+    experiment = data_path.parent.name
+    image_paths = defaultdict(list)
+    for group_path in data_path.iterdir():
+        for image_path in sorted((group_path / 'source').glob('*.png')):
+            mask_path = group_path / 'mask' / image_path.name
+
+            image_paths['source'].append((experiment, group_path.name, image_path))
+            image_paths['mask'].append((experiment, group_path.name, mask_path))
+
+    image_df = pd.DataFrame(image_paths['source'], columns=['experiment', 'group', 'path'])
+    mask_df = pd.DataFrame(image_paths['mask'], columns=['experiment', 'group', 'path'])
+    return image_df, mask_df
+
+
+def create_ds(data_path, transform=None, groups=None, size=None):
+    image_df, mask_df = create_image_mask_dfs(Path(data_path))
     if groups:
         image_df = image_df[image_df.group.isin(groups)]
         mask_df = mask_df[mask_df.group.isin(groups)]
@@ -112,3 +112,29 @@ def load_ds(data_path, transform, groups=None, size=None):
             mask_df = mask_df.iloc[inds]
 
     return AMDataset(image_df, mask_df, transform=transform)
+
+
+def create_dl(
+    paths, transform=None, path_image_n=None, shuffle=True, batch_size=4
+):
+    assert paths
+
+    ds = None
+    while paths:
+        path = paths.pop(0)
+        path_ds = create_ds(
+            Path(path), transform=transform, size=path_image_n
+        )
+        if not ds:
+            ds = path_ds
+        else:
+            ds += path_ds
+
+    dl = DataLoader(
+        dataset=ds,
+        shuffle=shuffle,
+        num_workers=4,
+        batch_size=batch_size,
+        pin_memory=torch.cuda.is_available()
+    )
+    return dl

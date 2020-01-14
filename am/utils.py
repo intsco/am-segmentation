@@ -64,6 +64,10 @@ def save_overlay(source, mask, path, dpi=100):
     plt.close()
 
 
+def save_model(model, model_path):
+    torch.save(model.state_dict(), model_path)
+
+
 def load_model(model_path):
     logger.info(f'Loading model from "{model_path}"')
 
