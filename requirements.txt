@@ -1,5 +1,6 @@
 opencv-python
 numpy
+scipy
 matplotlib
 albumentations
 scikit-image>=0.16.2  # update old version installed by albumentations

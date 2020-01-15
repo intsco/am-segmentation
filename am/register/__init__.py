@@ -6,6 +6,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from am.register.acq_grid_estimation import estimate_acq_grid_shape
 from am.register.clustering import (
     cluster_coords, convert_labels_to_grid, convert_grid_to_indices
 )
@@ -54,7 +55,7 @@ def export_am_coordinates(acq_index_mask_coo, path, acq_grid_shape):
 
 @time_it
 def register_ablation_marks(
-    source_path, mask_path, meta_path, am_coord_path, overlay_path, acq_grid_shape
+    source_path, mask_path, meta_path, am_coord_path, overlay_path
 ):
     logger.info(f'Registering ablation marks for {mask_path} mask')
     source, mask = load_source_mask(source_path, mask_path, meta_path)
@@ -62,6 +63,9 @@ def register_ablation_marks(
     target_axis = 1  # target axis: (1 = columns = X-axis, 0 = rows = Y-axis)
     best_angle = optimal_mask_rotation(mask, target_axis, angle_range=2, angle_step=0.1)
     mask = rotate_image(mask, best_angle)
+
+    acq_grid_shape = estimate_acq_grid_shape(mask)
+    logger.info(f'Estimated acquisition grid shape: {acq_grid_shape}')
 
     mask = erode_dilate(mask)
     mask = remove_noisy_marks(mask, acq_grid_shape)

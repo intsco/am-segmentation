@@ -9,8 +9,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('ds_path', type=str)
     parser.add_argument('groups', nargs='*')
-    parser.add_argument('--rows', type=int)
-    parser.add_argument('--cols', type=int)
     args = parser.parse_args()
 
     init_logger()
@@ -25,7 +23,6 @@ if __name__ == '__main__':
         meta_path = Path(args.ds_path) / 'tiles' / group / 'meta.json'
         am_coord_path = Path(args.ds_path) / 'am_coords' / group / 'am_coordinates.npy'
         overlay_path = Path(args.ds_path) / 'am_coords' / group / 'overlay.png'
-        acq_grid_shape = (args.rows, args.cols)
 
         register_ablation_marks(
             source_path=source_path,
@@ -33,5 +30,4 @@ if __name__ == '__main__':
             meta_path=meta_path,
             am_coord_path=am_coord_path,
             overlay_path=overlay_path,
-            acq_grid_shape=acq_grid_shape
         )

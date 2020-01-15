@@ -104,3 +104,10 @@ def overlay_image_with_am_labels(source, mask, am_centers, acq_indices, path):
     plt.axis('off')
     plt.savefig(path, bbox_inches='tight')
     plt.close()
+
+
+def plot_coord_peaks(hist, peaks, height):
+    fig, ax = plt.subplots(figsize=(15, 5))
+    ax.plot(hist)
+    ax.plot(peaks, hist[peaks], 'o')
+    ax.plot(np.ones_like(hist) * height, '--')
