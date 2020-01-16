@@ -55,7 +55,7 @@ def export_am_coordinates(acq_index_mask_coo, path, acq_grid_shape):
 
 @time_it
 def register_ablation_marks(
-    source_path, mask_path, meta_path, am_coord_path, overlay_path
+    source_path, mask_path, meta_path, am_coord_path, overlay_path, acq_grid_shape
 ):
     logger.info(f'Registering ablation marks for {mask_path} mask')
     source, mask = load_source_mask(source_path, mask_path, meta_path)
@@ -64,17 +64,19 @@ def register_ablation_marks(
     best_angle = optimal_mask_rotation(mask, target_axis, angle_range=2, angle_step=0.1)
     mask = rotate_image(mask, best_angle)
 
-    acq_grid_shape = estimate_acq_grid_shape(mask)
-    logger.info(f'Estimated acquisition grid shape: {acq_grid_shape}')
+    est_acq_grid_shape = estimate_acq_grid_shape(mask)
+    if est_acq_grid_shape != acq_grid_shape:
+        logger.warning(f'Estimated acquisition grid shape {est_acq_grid_shape} '
+                       f'is different from provided {acq_grid_shape}')
 
     mask = erode_dilate(mask)
-    mask = remove_noisy_marks(mask, acq_grid_shape)
+    mask = remove_noisy_marks(mask, est_acq_grid_shape)
     am_centers = find_am_centers(mask)
 
     target_axis = 0  # target axis: (1 = columns = X-axis, 0 = rows = Y-axis)
     row_labels = cluster_coords(
         axis_coords=am_centers[:, target_axis],
-        n_clusters=acq_grid_shape[target_axis],
+        n_clusters=est_acq_grid_shape[target_axis],
         sample_ratio=1
     )
     row_coords = am_centers[:, target_axis]
@@ -82,17 +84,21 @@ def register_ablation_marks(
     target_axis = 1  # target axis: (1 = columns = X-axis, 0 = rows = Y-axis)
     col_labels = cluster_coords(
         axis_coords=am_centers[:, target_axis],
-        n_clusters=acq_grid_shape[target_axis],
+        n_clusters=est_acq_grid_shape[target_axis],
         sample_ratio=1
     )
     col_coords = am_centers[:, target_axis]
 
-    acq_y_grid = convert_labels_to_grid(row_coords, row_labels)
-    acq_x_grid = convert_labels_to_grid(col_coords, col_labels)
-    acq_indices = convert_grid_to_indices(acq_y_grid, acq_x_grid, cols=acq_grid_shape[1])
-
     mask = rotate_image(mask, -best_angle)
     am_centers = rotate_am_centers(am_centers, -best_angle, mask.shape)
+
+    acq_y_grid = convert_labels_to_grid(row_coords, row_labels)
+    acq_x_grid = convert_labels_to_grid(col_coords, col_labels)
+
+    if est_acq_grid_shape != acq_grid_shape:
+        acq_indices = convert_grid_to_indices(acq_y_grid, acq_x_grid + 1, cols=acq_grid_shape[1])
+    else:
+        acq_indices = convert_grid_to_indices(acq_y_grid, acq_x_grid, cols=acq_grid_shape[1])
 
     acq_index_mask_coo = create_acq_index_mask(mask, am_centers, acq_indices)
     export_am_coordinates(acq_index_mask_coo, am_coord_path, acq_grid_shape)

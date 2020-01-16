@@ -78,7 +78,7 @@ def download_from_s3(s3_paths, data_path):
     )
 
 
-def register_ablation_marks_at_path(data_path):
+def register_ablation_marks_at_path(data_path, acq_grid_shape):
     for group_path in (data_path / 'source').iterdir():
         try:
             group = group_path.name
@@ -87,14 +87,15 @@ def register_ablation_marks_at_path(data_path):
                 mask_path=data_path / 'tiles_stitched' / group / 'mask.tiff',
                 meta_path=data_path / 'tiles' / group / 'meta.json',
                 am_coord_path=data_path / 'am_coords' / group / 'am_coordinates.npy',
-                overlay_path=data_path / 'am_coords' / group / 'overlay.png'
+                overlay_path=data_path / 'am_coords' / group / 'overlay.png',
+                acq_grid_shape=acq_grid_shape,
             )
         except Exception as e:
             logger.error(f'Failed to register AM marks at path {group_path}', exc_info=True)
 
 
 @time_it
-def run_am_pipeline(data_path, matrix, register):
+def run_am_pipeline(data_path, acq_grid_shape, matrix, register):
     normalize_source(data_path / 'source', data_path / 'source_norm', q1=1, q2=99)
     slice_to_tiles(data_path / 'source_norm', data_path / 'tiles')
 
@@ -110,12 +111,14 @@ def run_am_pipeline(data_path, matrix, register):
     overlay_images_with_masks(data_path / 'tiles_stitched', image_ext='tiff')
 
     if register:
-        register_ablation_marks_at_path(data_path)
+        register_ablation_marks_at_path(data_path, acq_grid_shape)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run AM segmentation pipeline')
     parser.add_argument('data_path', help='Dataset directory path')
+    parser.add_argument('--rows', type=int)
+    parser.add_argument('--cols', type=int)
     parser.add_argument('--matrix', type=str)
     parser.add_argument('--debug', dest='debug', action='store_true')
     parser.add_argument('--no-register', dest='register', action='store_false')
@@ -130,6 +133,7 @@ if __name__ == '__main__':
 
     run_am_pipeline(
         data_path=Path(args.data_path),
+        acq_grid_shape=(args.rows, args.cols),
         matrix=args.matrix,
         register=args.register
     )
