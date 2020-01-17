@@ -12,9 +12,9 @@ def find_coord_peaks(coords):
     hist = savgol_filter(hist, window_length=21, polyorder=3)
     peaks, _ = find_peaks(hist)
 
-    median_height = np.median(hist[peaks])
-    peaks, _ = find_peaks(hist, prominence=median_height * 0.1, height=median_height / 2)
-    return hist, peaks, median_height / 2
+    percentile_height = np.percentile(hist[peaks], q=90)
+    peaks, _ = find_peaks(hist, prominence=percentile_height * 0.1, height=percentile_height / 2)
+    return hist, peaks, percentile_height / 2
 
 
 def estimate_acq_grid_shape(mask):
