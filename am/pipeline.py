@@ -1,5 +1,6 @@
 import argparse
 import os
+from functools import partial
 from math import ceil
 from pathlib import Path
 import logging
@@ -11,7 +12,7 @@ from am.logger import init_logger
 from am.register import register_ablation_marks
 from am.segment.preprocess import slice_to_tiles, stitch_tiles_at_path, overlay_images_with_masks, \
     normalize_source
-from am.utils import time_it, read_image, plot_overlay, save_overlay
+from am.utils import time_it, read_image, plot_overlay, save_overlay, iterate_groups
 
 from am.ecs import (
     upload_images_to_s3,
@@ -25,13 +26,14 @@ from am.ecs import (
 logger = logging.getLogger('am-segm')
 
 
-def upload_to_s3(data_path, prefix):
+def upload_to_s3(input_path, groups, prefix):
+    logger.info(f'Uploading {input_path} to s3')
     local_input_paths, s3_paths = [], []
-    for group_path in data_path.iterdir():
-        logger.info(f'Inference of group path: {group_path}')
-        for local_path in Path(group_path / 'source').iterdir():
-            local_input_paths.append(local_path)
-            s3_paths.append(f'{prefix}/{group_path.name}/{local_path.name}')
+    for group_path in input_path.iterdir():
+        if group_path.name in groups:
+            for local_path in Path(group_path / 'source').iterdir():
+                local_input_paths.append(local_path)
+                s3_paths.append(f'{prefix}/{group_path.name}/{local_path.name}')
 
     upload_images_to_s3(
         local_paths=local_input_paths,
@@ -78,45 +80,60 @@ def download_from_s3(s3_paths, data_path):
     )
 
 
-def register_ablation_marks_at_path(data_path, acq_grid_shape):
+def register_ablation_marks_at_path(data_path, groups, acq_grid_shape):
     for group_path in (data_path / 'source').iterdir():
         try:
             group = group_path.name
-            register_ablation_marks(
-                source_path=data_path / 'source_norm' / group / 'source.tiff',
-                mask_path=data_path / 'tiles_stitched' / group / 'mask.tiff',
-                meta_path=data_path / 'tiles' / group / 'meta.json',
-                am_coord_path=data_path / 'am_coords' / group / 'am_coordinates.npy',
-                overlay_path=data_path / 'am_coords' / group / 'overlay.png',
-                acq_grid_shape=acq_grid_shape,
-            )
+            if group in groups:
+                register_ablation_marks(
+                    source_path=data_path / 'source_norm' / group / 'source.tiff',
+                    mask_path=data_path / 'tiles_stitched' / group / 'mask.tiff',
+                    meta_path=data_path / 'tiles' / group / 'meta.json',
+                    am_coord_path=data_path / 'am_coords' / group / 'am_coordinates.npy',
+                    overlay_path=data_path / 'am_coords' / group / 'overlay.png',
+                    acq_grid_shape=acq_grid_shape,
+                )
         except Exception as e:
             logger.error(f'Failed to register AM marks at path {group_path}', exc_info=True)
 
 
 @time_it
-def run_am_pipeline(data_path, acq_grid_shape, matrix, register):
-    normalize_source(data_path / 'source', data_path / 'source_norm', q1=1, q2=99)
-    slice_to_tiles(data_path / 'source_norm', data_path / 'tiles')
+def run_am_pipeline(data_path, groups, acq_grid_shape, matrix, register):
+    iterate_groups(
+        data_path / 'source', data_path / 'source_norm', groups=groups, func=normalize_source
+    )
+    iterate_groups(
+        data_path / 'source_norm', data_path / 'tiles', groups=groups, func=slice_to_tiles
+    )
 
     prefix = str(uuid4())
-    s3_paths = upload_to_s3(data_path / 'tiles', prefix)
+    s3_paths = upload_to_s3(data_path / 'tiles', groups, prefix)
     run_inference(s3_paths, prefix, matrix)
     download_from_s3(s3_paths, data_path / 'tiles')
 
     remove_images_from_s3(config['aws']['input_bucket'], prefix)
     remove_images_from_s3(config['aws']['output_bucket'], prefix)
 
-    stitch_tiles_at_path(input_path=data_path / 'tiles', overwrite=True, image_ext='tiff')
-    overlay_images_with_masks(data_path / 'tiles_stitched', image_ext='tiff')
+    iterate_groups(
+        data_path / 'tiles',
+        data_path / 'tiles_stitched',
+        groups=groups,
+        func=partial(stitch_tiles_at_path, image_ext='tiff')
+    )
+    iterate_groups(
+        data_path / 'tiles_stitched',
+        groups=groups,
+        func=partial(overlay_images_with_masks, image_ext='tiff')
+    )
 
     if register:
-        register_ablation_marks_at_path(data_path, acq_grid_shape)
+        register_ablation_marks_at_path(data_path, groups, acq_grid_shape)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run AM segmentation pipeline')
-    parser.add_argument('data_path', help='Dataset directory path')
+    parser.add_argument('ds_path', type=str, help='Dataset directory path')
+    parser.add_argument('groups', nargs='*')
     parser.add_argument('--rows', type=int)
     parser.add_argument('--cols', type=int)
     parser.add_argument('--matrix', type=str)
@@ -132,7 +149,8 @@ if __name__ == '__main__':
     os.environ['AWS_DEFAULT_REGION'] = config['aws']['aws_default_region']
 
     run_am_pipeline(
-        data_path=Path(args.data_path),
+        data_path=Path(args.ds_path),
+        groups=args.groups,
         acq_grid_shape=(args.rows, args.cols),
         matrix=args.matrix,
         register=args.register

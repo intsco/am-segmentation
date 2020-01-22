@@ -57,7 +57,7 @@ def export_am_coordinates(acq_index_mask_coo, path, acq_grid_shape):
 def register_ablation_marks(
     source_path, mask_path, meta_path, am_coord_path, overlay_path, acq_grid_shape
 ):
-    logger.info(f'Registering ablation marks for {mask_path} mask')
+    logger.info(f'Registering ablation marks for {mask_path}')
     source, mask = load_source_mask(source_path, mask_path, meta_path)
 
     target_axis = 1  # target axis: (1 = columns = X-axis, 0 = rows = Y-axis)

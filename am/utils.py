@@ -82,3 +82,22 @@ def load_model(model_path):
         model.load_state_dict(torch.load(f, map_location=device))
     model.eval()
     return model.to(device)
+
+
+def iterate_groups(input_path, output_path=None, groups=None, func=None):
+    assert func, 'Function should be provided'
+
+    if not groups:
+        groups = [p.name for p in input_path.iterdir()]
+
+    for group in groups:
+        try:
+            if output_path:
+                func(input_path / group, output_path / group)
+            else:
+                func(input_path / group)
+        except Exception as e:
+            logger.error(
+                f'Failed to process {input_path / group} path with {func.__name__} function',
+                exc_info=True
+            )

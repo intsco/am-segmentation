@@ -25,62 +25,51 @@ def rename_image(input_image_path):
     return output_image_path
 
 
-def normalize_source(input_path, output_path, q1=1, q2=99):
-    logger.info('Normalizing source images')
-    for group_path in input_path.iterdir():
-        for image_path in group_path.glob('*.tif*'):
-            if image_path.name != 'mask':
-                image = cv2.imread(str(image_path), cv2.IMREAD_GRAYSCALE)
-                image_norm = normalize(clip(image, q1, q2))
+def normalize_source(input_group_path, output_group_path, q1=1, q2=99):
+    logger.info(f'Normalizing images at {input_group_path}')
+    for image_path in input_group_path.glob('*.tif*'):
+        if image_path.name != 'mask':
+            image = cv2.imread(str(image_path), cv2.IMREAD_GRAYSCALE)
+            image_norm = normalize(clip(image, q1, q2))
 
-                output_group_path = output_path / group_path.name
-                output_group_path.mkdir(parents=True, exist_ok=True)
-                image_norm_path = output_group_path / 'source.tiff'
-                logger.debug(f'Saving normalized image to {image_norm_path}')
-                cv2.imwrite(str(image_norm_path), image_norm)
+            output_group_path.mkdir(parents=True, exist_ok=True)
+            image_norm_path = output_group_path / 'source.tiff'
+            logger.debug(f'Saving normalized image to {image_norm_path}')
+            cv2.imwrite(str(image_norm_path), image_norm)
+            break  # use first non mask tiff image as source
 
 
-def slice_to_tiles(input_path, output_path):
-    logger.info('Converting images to tiles')
-
-    image_paths = []
-    for root, dirs, files in os.walk(input_path):
-        if not dirs:
-            for f in files:
-                image_path = Path(root) / f
-                image_paths.append(image_path)
-
+def slice_to_tiles(input_group_path, output_group_path):
     tile_size = 512
     max_size = tile_size * 15
-    for image_path in image_paths:
-        logger.info(f'Slicing {image_path}')
+    image_path = input_group_path / 'source.tiff'
+    logger.info(f'Slicing {image_path}')
 
-        image = read_image(image_path)
+    image = read_image(image_path)
 
-        orig_h, orig_w = map(int, image.shape)
-        meta = {'orig_image': {'h': orig_h, 'w': orig_w}}
+    orig_h, orig_w = map(int, image.shape)
+    meta = {'orig_image': {'h': orig_h, 'w': orig_w}}
 
-        if max(image.shape) > max_size:
-            factor = max_size / max(image.shape)
-            image = cv2.resize(image, None, fx=factor, fy=factor, interpolation=cv2.INTER_AREA)
+    if max(image.shape) > max_size:
+        factor = max_size / max(image.shape)
+        image = cv2.resize(image, None, fx=factor, fy=factor, interpolation=cv2.INTER_AREA)
 
-        group = image_path.parent.name
-        image_tiles_path = output_path / group / image_path.stem
-        image_tiles_path.mkdir(parents=True, exist_ok=True)
+    image_tiles_path = output_group_path / image_path.stem
+    image_tiles_path.mkdir(parents=True, exist_ok=True)
 
-        tile_row_n, tile_col_n = compute_tile_row_col_n(image.shape, tile_size)
-        target_size = (tile_row_n * tile_size, tile_col_n * tile_size)
-        tiles = pad_slice_image(image, tile_size, target_size)
+    tile_row_n, tile_col_n = compute_tile_row_col_n(image.shape, tile_size)
+    target_size = (tile_row_n * tile_size, tile_col_n * tile_size)
+    tiles = pad_slice_image(image, tile_size, target_size)
 
-        h, w = map(int, image.shape)
-        meta['image'] = {'h': h, 'w': w}
-        meta['tile'] = {'rows': tile_row_n, 'cols': tile_col_n, 'size': tile_size}
-        json.dump(meta, open(output_path / group / 'meta.json', 'w'))
+    h, w = map(int, image.shape)
+    meta['image'] = {'h': h, 'w': w}
+    meta['tile'] = {'rows': tile_row_n, 'cols': tile_col_n, 'size': tile_size}
+    json.dump(meta, open(output_group_path / 'meta.json', 'w'))
 
-        for i, tile in enumerate(tiles):
-            tile_path = image_tiles_path / f'{i:03}.png'
-            logger.debug(f'Save tile: {tile_path}')
-            cv2.imwrite(str(tile_path), tile)
+    for i, tile in enumerate(tiles):
+        tile_path = image_tiles_path / f'{i:03}.png'
+        logger.debug(f'Save tile: {tile_path}')
+        cv2.imwrite(str(tile_path), tile)
 
 
 def stitch_and_crop_tiles(tiles_path, tile_size, meta):
@@ -98,35 +87,25 @@ def stitch_and_crop_tiles(tiles_path, tile_size, meta):
     return stitched_image
 
 
-def stitch_tiles_at_path(input_path, overwrite=False, image_ext='png'):
-    output_path = input_path.parent / 'tiles_stitched'
-    if overwrite:
-        rmtree(output_path, ignore_errors=True)
-    output_path.mkdir(exist_ok=True)
+def stitch_tiles_at_path(input_group_path, output_group_path, image_ext='png'):
+    logger.info(f'Stitching tiles at {input_group_path}')
 
-    for group_path in input_path.iterdir():
-        logger.info(f'Stitching tiles at {group_path}')
-        group = group_path.name
+    meta = json.load(open(input_group_path / 'meta.json'))
+    for image_type in ['source', 'mask']:
+        if (input_group_path / image_type).exists():
+            stitched_image = stitch_and_crop_tiles(input_group_path / image_type, 512, meta)
+            if stitched_image.max() <= 1:
+                stitched_image *= 255
 
-        meta = json.load(open(input_path / group / 'meta.json'))
-        for image_type in ['source', 'mask']:
-            if (group_path / image_type).exists():
-                stitched_image = stitch_and_crop_tiles(group_path / image_type, 512, meta)
-                if stitched_image.max() <= 1:
-                    stitched_image *= 255
-
-                stitched_group_path = output_path / group
-                stitched_group_path.mkdir(exist_ok=True)
-
-                stitched_image_path = stitched_group_path / f'{image_type}.{image_ext}'
-                cv2.imwrite(str(stitched_image_path), stitched_image)
-                logger.info(f'Saved stitched image to {stitched_image_path}')
+            output_group_path.mkdir(exist_ok=True)
+            stitched_image_path = output_group_path / f'{image_type}.{image_ext}'
+            cv2.imwrite(str(stitched_image_path), stitched_image)
+            logger.info(f'Saved stitched image to {stitched_image_path}')
 
 
-def overlay_images_with_masks(input_path, image_ext='png'):
-    for group_path in input_path.iterdir():
-        logger.info(f'Overlaying images at {input_path}')
-        source = read_image(str(group_path / f'source.{image_ext}'))
-        mask = read_image(str(group_path / f'mask.{image_ext}'))
-        assert source.shape == mask.shape
-        save_overlay(source, mask, path=group_path / f'overlay.{image_ext}')
+def overlay_images_with_masks(input_group_path, image_ext='png'):
+    logger.info(f'Overlaying images at {input_group_path}')
+    source = read_image(str(input_group_path / f'source.{image_ext}'))
+    mask = read_image(str(input_group_path / f'mask.{image_ext}'))
+    assert source.shape == mask.shape
+    save_overlay(source, mask, path=input_group_path / f'overlay.{image_ext}')
