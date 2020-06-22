@@ -99,6 +99,9 @@ def register_ablation_marks_at_path(data_path, groups, acq_grid_shape):
 
 @time_it
 def run_am_pipeline(data_path, groups, acq_grid_shape, matrix, register):
+    if not groups:
+        groups = [p.name for p in (data_path / 'source').iterdir()]
+
     iterate_groups(
         data_path / 'source', data_path / 'source_norm', groups=groups, func=normalize_source
     )
@@ -136,7 +139,7 @@ if __name__ == '__main__':
     parser.add_argument('groups', nargs='*')
     parser.add_argument('--rows', type=int)
     parser.add_argument('--cols', type=int)
-    parser.add_argument('--matrix', type=str)
+    parser.add_argument('--matrix', type=str, help="'DHB' or 'DAN'")
     parser.add_argument('--debug', dest='debug', action='store_true')
     parser.add_argument('--no-register', dest='register', action='store_false')
     args = parser.parse_args()

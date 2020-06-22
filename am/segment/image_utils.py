@@ -60,7 +60,7 @@ def overlay_tiles(input_path):
         input_path / img_type for img_type in ['source', 'mask', 'overlay']
     ]
 
-    if source_path.exists() and source_path.exists():
+    if source_path.exists() and mask_path.exists():
         overlay_path.mkdir(exist_ok=True)
         tile_n = sum(1 for _ in source_path.iterdir())
         for i in range(tile_n):

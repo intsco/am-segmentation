@@ -85,10 +85,7 @@ def load_model(model_path):
 
 
 def iterate_groups(input_path, output_path=None, groups=None, func=None):
-    assert func, 'Function should be provided'
-
-    if not groups:
-        groups = [p.name for p in input_path.iterdir()]
+    assert groups and func, '"groups" and "func" should be provided'
 
     for group in groups:
         try:

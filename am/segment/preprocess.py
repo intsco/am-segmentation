@@ -97,7 +97,7 @@ def stitch_tiles_at_path(input_group_path, output_group_path, image_ext='png'):
             if stitched_image.max() <= 1:
                 stitched_image *= 255
 
-            output_group_path.mkdir(exist_ok=True)
+            output_group_path.mkdir(parents=True, exist_ok=True)
             stitched_image_path = output_group_path / f'{image_type}.{image_ext}'
             cv2.imwrite(str(stitched_image_path), stitched_image)
             logger.info(f'Saved stitched image to {stitched_image_path}')
