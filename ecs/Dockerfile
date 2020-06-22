@@ -1,11 +1,11 @@
 # ==================================================================
 # module list
 # ------------------------------------------------------------------
-# python        3.6    (apt)
+# python        3.8    (apt)
 # pytorch       latest (pip)
 # ==================================================================
 
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 ENV LANG C.UTF-8
 RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
     PIP_INSTALL="python -m pip --no-cache-dir install --upgrade" && \
@@ -16,11 +16,9 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
            /etc/apt/sources.list.d/nvidia-ml.list && \
 
     apt-get update && \
-
 # ==================================================================
 # tools
 # ------------------------------------------------------------------
-
     DEBIAN_FRONTEND=noninteractive $APT_INSTALL \
         build-essential \
         apt-utils \
@@ -32,31 +30,17 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
         curl \
         unzip \
         && \
-
-#    $GIT_CLONE https://github.com/Kitware/CMake ~/cmake && \
-#    cd ~/cmake && \
-#    ./bootstrap && \
-#    make -j"$(nproc)" install && \
-
 # ==================================================================
 # python
 # ------------------------------------------------------------------
-
     DEBIAN_FRONTEND=noninteractive $APT_INSTALL \
         software-properties-common \
-        && \
-    add-apt-repository ppa:deadsnakes/ppa && \
-    apt-get update && \
-    DEBIAN_FRONTEND=noninteractive $APT_INSTALL \
-        python3.6 \
-        python3.6-dev \
         python3-distutils-extra \
         && \
+    ln -s -T /usr/bin/python3 /usr/local/bin/python && \
     wget -O ~/get-pip.py \
         https://bootstrap.pypa.io/get-pip.py && \
-    python3.6 ~/get-pip.py && \
-    ln -s /usr/bin/python3.6 /usr/local/bin/python3 && \
-    ln -s /usr/bin/python3.6 /usr/local/bin/python && \
+    python ~/get-pip.py && \
     $PIP_INSTALL \
         setuptools \
         && \
@@ -69,11 +53,9 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
         matplotlib \
         Cython \
         && \
-
 # ==================================================================
 # pytorch
 # ------------------------------------------------------------------
-
     $PIP_INSTALL \
         future \
         numpy \
@@ -82,17 +64,9 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
         pyyaml \
         typing \
         && \
-#    $PIP_INSTALL \
-#    "git+https://github.com/pytorch/vision.git" && \
-#    $PIP_INSTALL \
-#        torch_nightly -f \
-#        https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html \
-#        && \
-
 # ==================================================================
 # config & cleanup
 # ------------------------------------------------------------------
-
     ldconfig && \
     apt-get clean && \
     apt-get autoremove && \
