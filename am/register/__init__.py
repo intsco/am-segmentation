@@ -1,10 +1,10 @@
 import json
 import logging
-import operator
 from pathlib import Path
 
 import cv2
 import numpy as np
+from PIL import Image
 
 from am.register.acq_grid_estimation import estimate_acq_grid_shape
 from am.register.clustering import (
@@ -38,19 +38,11 @@ def load_source_mask(source_path, mask_path, meta_path):
 def export_am_coordinates(acq_index_mask_coo, path, acq_grid_shape):
     logger.info(f'Exporting acquisition index mask as AM coordinates at {path}')
 
-    data = acq_index_mask_coo.data
-    row = acq_index_mask_coo.row
-    col = acq_index_mask_coo.col
-
-    am_x_y_coords = []
-    for acq_idx in range(1, operator.mul(*acq_grid_shape) + 1):
-        pixel_inds = (data == acq_idx).nonzero()[0]
-        ys = row[pixel_inds]
-        xs = col[pixel_inds]
-        am_x_y_coords.append([xs, ys])
+    array = acq_index_mask_coo.todense().astype(np.uint16)
+    image = Image.fromarray(array, "I;16")
 
     Path(path).parent.mkdir(parents=True, exist_ok=True)
-    np.save(path, am_x_y_coords)
+    image.save(path)
 
 
 @time_it

@@ -89,7 +89,7 @@ def register_ablation_marks_at_path(data_path, groups, acq_grid_shape):
                     source_path=data_path / 'source_norm' / group / 'source.tiff',
                     mask_path=data_path / 'tiles_stitched' / group / 'mask.tiff',
                     meta_path=data_path / 'tiles' / group / 'meta.json',
-                    am_coord_path=data_path / 'am_coords' / group / 'am_coordinates.npy',
+                    am_coord_path=data_path / 'am_coords' / group / 'am_coordinates.png',
                     overlay_path=data_path / 'am_coords' / group / 'overlay.png',
                     acq_grid_shape=acq_grid_shape,
                 )
