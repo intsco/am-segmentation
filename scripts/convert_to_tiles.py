@@ -4,7 +4,7 @@ from pathlib import Path
 
 from am.logger import init_logger
 from am.segment.preprocess import slice_to_tiles, normalize_source
-from am.utils import iterate_groups
+from am.utils import iterate_groups, find_all_groups
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
@@ -13,9 +13,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
     init_logger()
 
-    source_path = Path(args.ds_path) / 'source'
+    data_path = Path(args.ds_path)
+    source_path = data_path / 'source'
     source_norm_path = source_path.parent / 'source_norm'
     tiles_path = source_path.parent / 'tiles'
 
-    iterate_groups(source_path, source_norm_path, groups=args.groups, func=normalize_source, )
-    iterate_groups(source_norm_path, tiles_path, groups=args.groups, func=slice_to_tiles)
+    groups = args.groups or find_all_groups(data_path)
+    iterate_groups(source_path, source_norm_path, groups=groups, func=normalize_source)
+    iterate_groups(source_norm_path, tiles_path, groups=groups, func=slice_to_tiles)

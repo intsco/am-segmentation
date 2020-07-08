@@ -14,7 +14,7 @@ from am.utils import time_it
 
 logger = logging.getLogger('am-segm')
 
-INFERENCE_BATCH_SIZE = 4
+INFERENCE_BATCH_SIZE = 8
 
 
 def upload_images_to_s3(local_paths, bucket, s3_paths, queue_url=None):

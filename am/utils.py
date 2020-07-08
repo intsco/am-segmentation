@@ -10,7 +10,6 @@ import torch.nn as nn
 import segmentation_models_pytorch as smp
 from matplotlib import pyplot as plt
 import numpy as np
-from matplotlib.transforms import Bbox
 
 logger = logging.getLogger('am-segm')
 
@@ -54,16 +53,6 @@ def plot_overlay(source, mask, figsize=(10, 10)):
     return fig, ax
 
 
-def save_overlay(source, mask, path, dpi=100):
-    h, w = source.shape
-    plot_size_in = (w / dpi, h / dpi)
-    fig, ax = plot_overlay(source, mask, figsize=plot_size_in)
-    ax.set_position([0, 0, 1, 1])  # Critical!
-    ax.axis('off')
-    plt.savefig(path, bbox_inches=Bbox([[0, 0], plot_size_in]))
-    plt.close()
-
-
 def save_model(model, model_path):
     torch.save(model.state_dict(), model_path)
 
@@ -82,6 +71,10 @@ def load_model(model_path):
         model.load_state_dict(torch.load(f, map_location=device))
     model.eval()
     return model.to(device)
+
+
+def find_all_groups(data_path):
+    return [p.name for p in (data_path / 'source').iterdir()]
 
 
 def iterate_groups(input_path, output_path=None, groups=None, func=None):

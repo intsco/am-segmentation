@@ -1,15 +1,13 @@
 import logging
 import os
-from pathlib import Path
-from shutil import rmtree
 import json
 
 import cv2
 from albumentations import CenterCrop
 
 from am.segment.image_utils import pad_slice_image, compute_tile_row_col_n, stitch_tiles, clip, \
-    normalize
-from am.utils import clean_dir, read_image, save_overlay
+    normalize, overlay_source_mask, save_rgb_image
+from am.utils import clean_dir, read_image
 
 logger = logging.getLogger('am-segm')
 
@@ -41,7 +39,7 @@ def normalize_source(input_group_path, output_group_path, q1=1, q2=99):
 
 def slice_to_tiles(input_group_path, output_group_path):
     tile_size = 512
-    max_size = tile_size * 15
+    max_size = tile_size * 40
     image_path = input_group_path / 'source.tiff'
     logger.info(f'Slicing {image_path}')
 
@@ -67,7 +65,7 @@ def slice_to_tiles(input_group_path, output_group_path):
     json.dump(meta, open(output_group_path / 'meta.json', 'w'))
 
     for i, tile in enumerate(tiles):
-        tile_path = image_tiles_path / f'{i:03}.png'
+        tile_path = image_tiles_path / f'{i:04}.png'
         logger.debug(f'Save tile: {tile_path}')
         cv2.imwrite(str(tile_path), tile)
 
@@ -108,4 +106,5 @@ def overlay_images_with_masks(input_group_path, image_ext='png'):
     source = read_image(str(input_group_path / f'source.{image_ext}'))
     mask = read_image(str(input_group_path / f'mask.{image_ext}'))
     assert source.shape == mask.shape
-    save_overlay(source, mask, path=input_group_path / f'overlay.{image_ext}')
+    overlay = overlay_source_mask(source, mask)
+    save_rgb_image(overlay, input_group_path / f'overlay.{image_ext}')

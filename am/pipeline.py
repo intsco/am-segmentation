@@ -12,7 +12,8 @@ from am.logger import init_logger
 from am.register import register_ablation_marks
 from am.segment.preprocess import slice_to_tiles, stitch_tiles_at_path, overlay_images_with_masks, \
     normalize_source
-from am.utils import time_it, read_image, plot_overlay, save_overlay, iterate_groups
+from am.utils import time_it, iterate_groups, \
+    find_all_groups
 
 from am.ecs import (
     upload_images_to_s3,
@@ -61,8 +62,8 @@ def run_inference(s3_paths, prefix, matrix):
             ]
         }
 
-    task_n = min(ceil(len(s3_paths) / INFERENCE_BATCH_SIZE), 10)
-    task_config = dict(count=task_n, **config['aws']['ecs'])
+    task_n = min(ceil(len(s3_paths) / INFERENCE_BATCH_SIZE), 20)
+    task_config = dict(**config['aws']['ecs'], count=task_n)
     set_container_environment(task_config, matrix)
     run_wait_for_inference_task(
         task_config, stop_callback, sleep_interval=10, timeout=10 * 60
@@ -100,7 +101,7 @@ def register_ablation_marks_at_path(data_path, groups, acq_grid_shape):
 @time_it
 def run_am_pipeline(data_path, groups, acq_grid_shape, matrix, register):
     if not groups:
-        groups = [p.name for p in (data_path / 'source').iterdir()]
+        groups = find_all_groups(data_path)
 
     iterate_groups(
         data_path / 'source', data_path / 'source_norm', groups=groups, func=normalize_source

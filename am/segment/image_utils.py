@@ -4,9 +4,8 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+from PIL import Image
 from albumentations import PadIfNeeded
-
-from am.utils import save_overlay
 
 logger = logging.getLogger('am-segm')
 
@@ -53,7 +52,21 @@ def stitch_tiles(tiles, tile_size, tile_row_n, tile_col_n):
     return image
 
 
-def overlay_tiles(input_path):
+def overlay_source_mask(source: np.ndarray, mask: np.ndarray, alpha: float = 0.3):
+    mask_3ch = np.array(Image.fromarray(mask).convert('RGB'))
+    mask_3ch[mask > 127] = [255, 255, 0]  # make ablation marks yellow
+    return Image.blend(
+        Image.fromarray(source).convert('RGB'),
+        Image.fromarray(mask_3ch),
+        alpha
+    )
+
+
+def save_rgb_image(image, path):
+    cv2.imwrite(str(path), cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
+
+
+def overlay_tiles(input_path: Path):
     logger.info(f'Overlaying images at {input_path}')
 
     source_path, mask_path, overlay_path = [
@@ -62,18 +75,17 @@ def overlay_tiles(input_path):
 
     if source_path.exists() and mask_path.exists():
         overlay_path.mkdir(exist_ok=True)
-        tile_n = sum(1 for _ in source_path.iterdir())
-        for i in range(tile_n):
-            image_fn = f'{i:03}.png'
+        for source_tile_path in source_path.iterdir():
+            image_fn = source_tile_path.name
             logger.debug(f'Overlaying {image_fn}')
 
-            source_tile_path = source_path / image_fn
             source_tile = cv2.imread(str(source_tile_path), cv2.IMREAD_GRAYSCALE)
 
             mask_tile_path = mask_path / image_fn
             mask_tile = cv2.imread(str(mask_tile_path), cv2.IMREAD_GRAYSCALE)
 
-            save_overlay(source_tile, mask_tile, path=overlay_path / image_fn)
+            overlay = overlay_source_mask(source_tile, mask_tile)
+            save_rgb_image(overlay, overlay_path / image_fn)
     else:
         for subdir_path in Path(input_path).iterdir():
             overlay_tiles(subdir_path)
