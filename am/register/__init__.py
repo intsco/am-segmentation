@@ -62,13 +62,13 @@ def register_ablation_marks(
                        f'is different from provided {acq_grid_shape}')
 
     mask = erode_dilate(mask)
-    mask = remove_noisy_marks(mask, est_acq_grid_shape)
+    mask = remove_noisy_marks(mask, acq_grid_shape)
     am_centers = find_am_centers(mask)
 
     target_axis = 0  # target axis: (1 = columns = X-axis, 0 = rows = Y-axis)
     row_labels = cluster_coords(
         axis_coords=am_centers[:, target_axis],
-        n_clusters=est_acq_grid_shape[target_axis],
+        n_clusters=acq_grid_shape[target_axis],
         sample_ratio=1
     )
     row_coords = am_centers[:, target_axis]
@@ -76,7 +76,7 @@ def register_ablation_marks(
     target_axis = 1  # target axis: (1 = columns = X-axis, 0 = rows = Y-axis)
     col_labels = cluster_coords(
         axis_coords=am_centers[:, target_axis],
-        n_clusters=est_acq_grid_shape[target_axis],
+        n_clusters=acq_grid_shape[target_axis],
         sample_ratio=1
     )
     col_coords = am_centers[:, target_axis]
@@ -87,10 +87,7 @@ def register_ablation_marks(
     acq_y_grid = convert_labels_to_grid(row_coords, row_labels)
     acq_x_grid = convert_labels_to_grid(col_coords, col_labels)
 
-    if est_acq_grid_shape != acq_grid_shape:
-        acq_indices = convert_grid_to_indices(acq_y_grid, acq_x_grid + 1, cols=acq_grid_shape[1])
-    else:
-        acq_indices = convert_grid_to_indices(acq_y_grid, acq_x_grid, cols=acq_grid_shape[1])
+    acq_indices = convert_grid_to_indices(acq_y_grid, acq_x_grid, cols=acq_grid_shape[1])
 
     acq_index_mask_coo = create_acq_index_mask(mask, am_centers, acq_indices)
     export_am_coordinates(acq_index_mask_coo, am_coord_path, acq_grid_shape)

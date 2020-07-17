@@ -6,6 +6,7 @@ from matplotlib import colors
 import matplotlib.patches as patches
 import numpy as np
 
+from am.segment.image_utils import overlay_source_mask
 from am.utils import min_max, time_it
 
 logger = logging.getLogger('am-segm')
@@ -69,6 +70,7 @@ def shift_center_coords(centers, indices, row_offset, col_offset, patch_size):
     return shifted_centers, indices[mask]
 
 
+@time_it
 def plot_am_labels(
     mask, centers, labels, source=None, row_offset=None, col_offset=None, patch_size=None
 ):
@@ -83,11 +85,15 @@ def plot_am_labels(
     dpi = 100
     figsize = (ceil(mask.shape[1] / dpi), ceil(mask.shape[0] / dpi))
     fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
-    if source is None:
-        ax.imshow(mask, cmap='viridis', interpolation=None)
-    else:
-        ax.imshow(source, cmap='gray', interpolation=None)  # plot first channel only
-        ax.imshow(mask, cmap='viridis', interpolation=None, alpha=0.3)
+
+    overlay = overlay_source_mask(source, mask)
+    ax.imshow(np.array(overlay), cmap='viridis', interpolation=None)
+
+    # if source is None:
+    #     ax.imshow(mask, cmap='viridis', interpolation=None)
+    # else:
+    #     ax.imshow(source, cmap='gray', interpolation=None)  # plot first channel only
+    #     ax.imshow(mask, cmap='viridis', interpolation=None, alpha=0.3)
 
     circle_size = (4 * 72 / fig.dpi) ** 2  # circle size (diameter**2) in points
     fontsize = 10 * 72 / fig.dpi  # text size in points
