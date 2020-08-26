@@ -35,6 +35,13 @@ def upload_images_to_s3(local_paths, bucket, s3_paths, queue_url=None):
         list(executor.map(upload, zip(local_paths, s3_paths)))
 
 
+def upload_model(local_path, bucket, s3_path):
+    logger.debug(f'Uploading model file {local_path} to s3://{bucket}/{s3_path}')
+    s3 = boto3.client('s3')
+    s3.upload_file(str(local_path), bucket, s3_path)
+    return f's3://{bucket}/{s3_path}'
+
+
 def consume_messages(queue_url, n=8):
     sqs = boto3.client('sqs')
     receipt_handles = []

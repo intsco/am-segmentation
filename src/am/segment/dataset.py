@@ -115,9 +115,11 @@ def create_ds(data_path, transform=None, groups=None, size=None):
 
 
 def create_dl(
-    paths, transform=None, path_image_n=None, shuffle=True, batch_size=4
+    paths, transform=None, path_image_n=None, shuffle=True, batch_size=4, num_workers=4
 ):
     assert paths
+
+    print(f'Loading data from {paths} paths')
 
     ds = None
     while paths:
@@ -133,7 +135,7 @@ def create_dl(
     dl = DataLoader(
         dataset=ds,
         shuffle=shuffle,
-        num_workers=4,
+        num_workers=num_workers,
         batch_size=batch_size,
         pin_memory=torch.cuda.is_available()
     )

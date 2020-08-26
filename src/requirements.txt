@@ -1,0 +1,2 @@
+segmentation-models-pytorch==0.1.0
+albumentations==0.4.5

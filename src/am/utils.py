@@ -1,4 +1,6 @@
 import logging
+import tarfile
+from collections import namedtuple
 from functools import wraps
 from pathlib import Path
 from shutil import rmtree
@@ -8,8 +10,6 @@ import cv2
 import torch
 import torch.nn as nn
 import segmentation_models_pytorch as smp
-from matplotlib import pyplot as plt
-import numpy as np
 
 logger = logging.getLogger('am-segm')
 
@@ -18,10 +18,14 @@ def min_max(a):
     return a.min(), a.max()
 
 
+def dict_to_namedtuple(dic):
+    return namedtuple('Metrics', dic.keys())(**dic)
+
+
 def clean_dir(path):
     logger.info(f'Cleaning up {path} directory')
     rmtree(path, ignore_errors=True)
-    Path(path).mkdir(parents=True)
+    Path(path).mkdir(parents=True, exist_ok=True)
 
 
 def time_it(func):
@@ -41,19 +45,9 @@ def read_image(path):
     return cv2.imread(str(path))[:, :, 0]  # because ch0==ch1==ch2
 
 
-def plot_overlay(source, mask, figsize=(10, 10)):
-    source, mask = np.array(source), np.array(mask)
-    if source.ndim > 2:
-        source = source[0]  # plot first channel only
-    if mask.ndim > 2:
-        mask = mask[0]  # plot first channel only
-    fig, ax = plt.subplots(1, 1, figsize=figsize)
-    ax.imshow(source, cmap='gray', interpolation=None)  # plot first channel only
-    ax.imshow(mask, cmap='viridis', interpolation=None, alpha=0.3)
-    return fig, ax
-
-
 def save_model(model, model_path):
+    print(f'Saving model to {model_path}')
+    model_path.parent.mkdir(exist_ok=True)
     torch.save(model.state_dict(), model_path)
 
 
@@ -78,9 +72,9 @@ def find_all_groups(data_path):
 
 
 def iterate_groups(input_path, output_path=None, groups=None, func=None):
-    assert groups and func, '"groups" and "func" should be provided'
+    assert func, '"func" should be provided'
 
-    for group in groups:
+    for group in groups or [p.name for p in input_path.iterdir()]:
         try:
             if output_path:
                 func(input_path / group, output_path / group)

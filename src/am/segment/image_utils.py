@@ -62,8 +62,8 @@ def overlay_source_mask(source: np.ndarray, mask: np.ndarray, alpha: float = 0.3
     )
 
 
-def save_rgb_image(image, path):
-    cv2.imwrite(str(path), cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
+def save_rgb_image(array, path):
+    cv2.imwrite(str(path), cv2.cvtColor(array, cv2.COLOR_RGB2BGR))
 
 
 def overlay_tiles(input_path: Path):
@@ -85,7 +85,7 @@ def overlay_tiles(input_path: Path):
             mask_tile = cv2.imread(str(mask_tile_path), cv2.IMREAD_GRAYSCALE)
 
             overlay = overlay_source_mask(source_tile, mask_tile)
-            save_rgb_image(overlay, overlay_path / image_fn)
+            save_rgb_image(np.array(overlay), overlay_path / image_fn)
     else:
         for subdir_path in Path(input_path).iterdir():
             overlay_tiles(subdir_path)

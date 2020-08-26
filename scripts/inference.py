@@ -22,6 +22,7 @@ from am.ecs import (
     INFERENCE_BATCH_SIZE,
     remove_images_from_s3,
     list_images_on_s3,
+    upload_model,
 )
 
 logger = logging.getLogger('am-segm')
@@ -45,14 +46,14 @@ def upload_to_s3(input_path, groups, prefix):
     return s3_paths
 
 
-def run_inference(s3_paths, prefix, matrix):
+def run_inference(s3_paths, prefix, model_path):
     def stop_callback():
         pred_s3_paths = list_images_on_s3(config['aws']['output_bucket'], prefix)
         logger.debug(f'Predicted {len(pred_s3_paths)}/{len(s3_paths)} images')
         return len(pred_s3_paths) == len(s3_paths)
 
-    def set_container_environment(task_config, matrix):
-        model_path = f's3://{config["aws"]["model_bucket"]}/model/unet-{matrix.lower()}.pt'
+    def set_container_environment(task_config, model_path):
+        # model_path = f's3://{config["aws"]["model_bucket"]}/model/unet-{matrix.lower()}.pt'
         task_config['overrides'] = {
             'containerOverrides': [
                 {
@@ -64,7 +65,7 @@ def run_inference(s3_paths, prefix, matrix):
 
     task_n = min(ceil(len(s3_paths) / INFERENCE_BATCH_SIZE), 20)
     task_config = dict(**config['aws']['ecs'], count=task_n)
-    set_container_environment(task_config, matrix)
+    set_container_environment(task_config, model_path)
     run_wait_for_inference_task(
         task_config, stop_callback, sleep_interval=10, timeout=10 * 60
     )
@@ -99,7 +100,7 @@ def register_ablation_marks_at_path(data_path, groups, acq_grid_shape):
 
 
 @time_it
-def run_am_pipeline(data_path, groups, acq_grid_shape, matrix, register):
+def run_am_pipeline(data_path, groups, acq_grid_shape, model_local_path, register):
     if not groups:
         groups = find_all_groups(data_path)
 
@@ -112,7 +113,8 @@ def run_am_pipeline(data_path, groups, acq_grid_shape, matrix, register):
 
     prefix = str(uuid4())
     s3_paths = upload_to_s3(data_path / 'tiles', groups, prefix)
-    run_inference(s3_paths, prefix, matrix)
+    model_path = upload_model(model_local_path, config['aws']['model_bucket'], 'ecs/model.pt')
+    run_inference(s3_paths, prefix, model_path)
     download_from_s3(s3_paths, data_path / 'tiles')
 
     remove_images_from_s3(config['aws']['input_bucket'], prefix)
@@ -134,16 +136,25 @@ def run_am_pipeline(data_path, groups, acq_grid_shape, matrix, register):
         register_ablation_marks_at_path(data_path, groups, acq_grid_shape)
 
 
-if __name__ == '__main__':
+def parse_args():
     parser = argparse.ArgumentParser(description='Run AM segmentation pipeline')
     parser.add_argument('ds_path', type=str, help='Dataset directory path')
     parser.add_argument('groups', nargs='*')
+    parser.add_argument('--model-path', type=str, required=True, help='Path to model file')
     parser.add_argument('--rows', type=int)
     parser.add_argument('--cols', type=int)
-    parser.add_argument('--matrix', type=str, help="'DHB' or 'DAN'")
     parser.add_argument('--debug', dest='debug', action='store_true')
     parser.add_argument('--no-register', dest='register', action='store_false')
+
     args = parser.parse_args()
+    if args.register:
+        assert args.rows and args.cols
+
+    return args
+
+
+if __name__ == '__main__':
+    args = parse_args()
 
     init_logger(logging.DEBUG if args.debug else logging.INFO)
 
@@ -156,6 +167,6 @@ if __name__ == '__main__':
         data_path=Path(args.ds_path),
         groups=args.groups,
         acq_grid_shape=(args.rows, args.cols),
-        matrix=args.matrix,
+        model_local_path=args.model_path,
         register=args.register
     )

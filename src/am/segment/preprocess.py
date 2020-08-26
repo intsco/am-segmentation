@@ -2,6 +2,7 @@ import logging
 import os
 import json
 
+import numpy as np
 import cv2
 from albumentations import CenterCrop
 
@@ -107,4 +108,4 @@ def overlay_images_with_masks(input_group_path, image_ext='png'):
     mask = read_image(str(input_group_path / f'mask.{image_ext}'))
     assert source.shape == mask.shape
     overlay = overlay_source_mask(source, mask)
-    save_rgb_image(overlay, input_group_path / f'overlay.{image_ext}')
+    save_rgb_image(np.array(overlay), input_group_path / f'overlay.{image_ext}')

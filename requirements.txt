@@ -2,7 +2,6 @@ opencv-python
 numpy
 scipy
 matplotlib
-albumentations
 scikit-image>=0.16.2  # update old version installed by albumentations
 pillow<7  # fix broken Pillow 7
 dask>=2.9.1  # to remove yaml warning
@@ -11,9 +10,10 @@ pandas
 ipykernel
 tensorboardX
 tensorboard
-boto3
 pyyaml
 -f https://download.pytorch.org/whl/torch_stable.html
 torch==1.5.1+cpu
 torchvision==0.6.1+cpu
 segmentation-models-pytorch==0.1.0
+albumentations==0.4.5
+sagemaker

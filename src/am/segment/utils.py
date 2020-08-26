@@ -11,6 +11,10 @@ from torch.utils.data import DataLoader
 logger = logging.getLogger('am-segm')
 
 
+def norm_convert_to_int8(image):
+    return ((image - image.min()) / (image.max() - image.min()) * 255).astype(np.uint8)
+
+
 def convert_to_image(array):
     if type(array) == torch.Tensor:
         image = array.detach().cpu().numpy()
@@ -20,7 +24,7 @@ def convert_to_image(array):
         image = image[0][0]
     elif image.ndim == 3:
         image = image[0]
-    return image
+    return norm_convert_to_int8(image)
 
 
 def plot_images_row(images, titles=None):

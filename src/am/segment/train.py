@@ -1,22 +1,36 @@
 import time
 from pathlib import Path
 
+import numpy as np
 import torch
-from torch.optim import Adam
-from torch.utils.data import DataLoader
-from segmentation_models_pytorch import Unet, FPN
 
-from am.segment.dataset import AMDataset, create_image_mask_dfs, train_transform, valid_transform
+from am.segment.image_utils import overlay_source_mask
 from am.segment.loss import jaccard, CombinedLoss
-from am.segment.model import UNet11
+from am.segment.utils import convert_to_image
+from am.utils import dict_to_namedtuple
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+
+def convert_history_to_tuple(history):
+    history_dic = {}
+    for name in history[0].keys():
+        values = [m[name] for m in history]
+        if name.endswith('loss') or name.endswith('metric'):
+            values = np.array(values)
+        history_dic[name] = values
+    return dict_to_namedtuple(history_dic)
 
 
 def train_loop(model, train_dl, valid_dl=None,
                optimizer=None, criterion=None,
                n_epochs=1, writer=None):
+    print(f'Starting training loop. Using {device} device')
+
     start = time.time()
+    best_valid_metric = 0
+    best_model_path = Path('./best_model.pt')
+    history = []
     for epoch in range(0, n_epochs):
         print(f'Epoch {epoch + 1}/{n_epochs}')
         print('-' * 10)
@@ -48,10 +62,12 @@ def train_loop(model, train_dl, valid_dl=None,
             writer.add_scalar('loss/train', running_loss, epoch)
             writer.add_scalar('jaccard/train', running_metric, epoch)
 
+        track_overlay = None
         if valid_dl:
             with torch.no_grad():
                 model.eval()
                 losses, metrics = [], []
+                max_pixels, track_inputs, track_outputs = 0, None, None
                 for inputs, targets in valid_dl:
                     print('.', end='')
                     inputs, targets = inputs.to(device), targets.to(device)
@@ -62,52 +78,42 @@ def train_loop(model, train_dl, valid_dl=None,
                     metric = jaccard((outputs > 0.5).float(), targets).sum().item()
                     metrics.append(metric)
 
+                    if targets.sum() > max_pixels:
+                        max_pixels = targets.sum()
+                        track_inputs = inputs
+                        track_outputs = outputs
+
                 valid_loss = sum(losses) / len(valid_dl.dataset)
                 valid_metric = sum(metrics) / len(valid_dl.dataset)
                 print(f'\nValid loss: {valid_loss:.5f}, valid metric: {valid_metric:.5f}')
                 if writer:
                     writer.add_scalar('loss/valid', valid_loss, epoch)
                     writer.add_scalar('jaccard/valid', valid_metric, epoch)
+                if valid_metric > best_valid_metric:
+                    best_valid_metric = valid_metric
+                    print(f'Saving best model as "{best_model_path}"')
+                    torch.save(model.state_dict(), best_model_path)
+
+                track_overlay = overlay_source_mask(
+                    convert_to_image(track_inputs), convert_to_image(torch.sigmoid(track_outputs))
+                )
+
+        history.append({
+            'train_loss': running_loss,
+            'train_metric': running_metric,
+            'valid_loss': valid_loss,
+            'valid_metric': valid_metric,
+            'overlay': track_overlay
+        })
+
         elapsed = int(time.time() - start)
         print(f'{elapsed // 60} min {elapsed % 60} sec')
 
+    checkpoint = torch.load(best_model_path)
+    model.load_state_dict(checkpoint)
+
+    return history
+
 
 if __name__ == '__main__':
-    from sklearn.model_selection import GroupKFold
-
-    image_df, mask_df = create_image_mask_dfs(Path('data/tiles'))
-    cv = GroupKFold(n_splits=4)
-    train_inds, valid_inds = next(cv.split(image_df, groups=image_df.group))
-
-    train_ds = AMDataset(image_df.iloc[train_inds], mask_df.iloc[train_inds],
-                         transform=train_transform())
-    valid_ds = AMDataset(image_df.iloc[valid_inds], mask_df.iloc[valid_inds],
-                         transform=valid_transform())
-
-    batch_size = 4
-    train_dl = DataLoader(
-        dataset=train_ds,
-        shuffle=True,
-        num_workers=4,
-        batch_size=batch_size,
-        pin_memory=torch.cuda.is_available()
-    )
-    valid_dl = DataLoader(
-        dataset=valid_ds,
-        shuffle=False,
-        num_workers=4,
-        batch_size=batch_size,
-        pin_memory=torch.cuda.is_available()
-    )
-    len(train_dl), len(valid_dl)
-
-    lr = 1e-3
-    n_epochs = 5
-
-    model = UNet11(pretrained=True)
-    optimizer = Adam(model.parameters(), lr=lr)
-    criterion = CombinedLoss()
-
-    train_loop(model, train_dl, valid_dl,
-               optimizer, criterion,
-               n_epochs=n_epochs)
+    pass
