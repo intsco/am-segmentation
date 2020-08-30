@@ -10,18 +10,18 @@ from am.sage_maker import copy_training_data, upload_fine_tuning_data, delete_da
     download_training_artifacts
 
 
-def fit_estimator():
+def fit_estimator(local=False):
     pytorch_estimator = Estimator(
         hyperparameters=hyperparameters,
         image_uri=image_uri,
-        instance_type='ml.p2.xlarge',
-        # instance_type='local',
+        instance_type='ml.p2.xlarge' if not local else 'local',
         instance_count=1,
         # use_spot_instances=False,
         # max_wait=None,
         role=role,
-        sagemaker_session=sagemaker_session,
-        # sagemaker_session=sagemaker.LocalSession(boto_session=session),
+        sagemaker_session=(sagemaker_session
+                           if not local
+                           else sagemaker.LocalSession(boto_session=sagemaker_session.boto_session)),
         base_job_name='sagemaker-pytorch-train-gpu'
     )
     ds_types = ['train', 'valid']
@@ -36,13 +36,9 @@ def fit_estimator():
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train AM segmentation model with SageMaker')
-    parser.add_argument(
-        '--fine-tuning-path',
-        type=str,
-        default='./data/fine-tuning',
-        help="Path to fine tuning data"
-    )
+    parser.add_argument('fine_tuning_path', type=str, help='Path to fine tuning data')
     parser.add_argument('--matrix', type=str, required=True, help="'DHB' or 'DAN'")
+    parser.add_argument('--local', action='store_true', help='Run training locally')
     return parser.parse_args()
 
 
@@ -66,7 +62,7 @@ if __name__ == '__main__':
     role = 'arn:aws:iam::236062312728:role/AM-SegmSageMakerRole'
     image_uri = '236062312728.dkr.ecr.eu-west-1.amazonaws.com/am-segm/sagemaker-pytorch-train-gpu:latest'
     am_bucket = 'am-segm'
-    training_data_prefix = 'training-data'
+    training_data_prefix = f'training-data-{args.matrix.lower()}'
     sagemaker_bucket = sagemaker_session.default_bucket()
     sagemaker_input_prefix = 'input'
     fine_tuning_data_path = Path(args.fine_tuning_path)
@@ -77,10 +73,15 @@ if __name__ == '__main__':
     )
     upload_fine_tuning_data(sagemaker_session, fine_tuning_data_path, sagemaker_input_prefix)
 
+    num_workers = 4 if not args.local else 1
     hyperparameters = {
-        'epochs': 10, 'batch-size': 4, 'num-workers': 4, 'lr-dec-1': 3e-2, 'lr-enc-2': 3e-4
+        'epochs': 10,
+        'batch-size': 4,
+        'num-workers': num_workers,
+        'lr-dec-1': 3e-2,
+        'lr-enc-2': 3e-4
     }
-    pytorch_estimator = fit_estimator()
+    pytorch_estimator = fit_estimator(args.local)
 
     estimator_output_prefix = f'{pytorch_estimator.latest_training_job.name}/output'
     download_training_artifacts(

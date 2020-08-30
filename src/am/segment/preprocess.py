@@ -38,8 +38,7 @@ def normalize_source(input_group_path, output_group_path, q1=1, q2=99):
             break  # use first non mask tiff image as source
 
 
-def slice_to_tiles(input_group_path, output_group_path):
-    tile_size = 512
+def slice_to_tiles(input_group_path, output_group_path, tile_size=512):
     max_size = tile_size * 40
     image_path = input_group_path / 'source.tiff'
     logger.info(f'Slicing {image_path}')
@@ -79,20 +78,21 @@ def stitch_and_crop_tiles(tiles_path, tile_size, meta):
     tiles = [None] * len(tile_paths)
     for path in tile_paths:
         i = int(path.stem)
-        tiles[i] = cv2.imread(str(path))[:, :, 0]  # because ch0==ch1==ch2
+        tile = cv2.imread(str(path))[:, :, 0]  # because ch0==ch1==ch2
+        tiles[i] = cv2.resize(tile, (tile_size, tile_size), interpolation=cv2.INTER_NEAREST)
 
     stitched_image = stitch_tiles(tiles, tile_size, meta['tile']['rows'], meta['tile']['cols'])
     stitched_image = CenterCrop(meta['image']['h'], meta['image']['w']).apply(stitched_image)
     return stitched_image
 
 
-def stitch_tiles_at_path(input_group_path, output_group_path, image_ext='png'):
+def stitch_tiles_at_path(input_group_path, output_group_path, tile_size=512, image_ext='png'):
     logger.info(f'Stitching tiles at {input_group_path}')
 
     meta = json.load(open(input_group_path / 'meta.json'))
     for image_type in ['source', 'mask']:
         if (input_group_path / image_type).exists():
-            stitched_image = stitch_and_crop_tiles(input_group_path / image_type, 512, meta)
+            stitched_image = stitch_and_crop_tiles(input_group_path / image_type, tile_size, meta)
             if stitched_image.max() <= 1:
                 stitched_image *= 255
 

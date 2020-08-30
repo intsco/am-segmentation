@@ -30,13 +30,15 @@ def train_transform(p=1):
             albu.RandomBrightnessContrast(p=1, brightness_limit=0.2, contrast_limit=0.2),
             albu.RandomGamma(p=1, gamma_limit=(80, 120)),
         ], p=1),
-        albu.Normalize(p=1),
+        albu.Normalize(),
+        albu.Resize(512, 512),
     ], p=p)
 
 
 def valid_transform(p=1):
     return albu.Compose([
-        albu.Normalize(p=1),
+        albu.Normalize(),
+        albu.Resize(512, 512),
     ], p=p)
 
 

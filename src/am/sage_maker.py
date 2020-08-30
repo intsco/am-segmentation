@@ -15,7 +15,7 @@ def download_training_artifacts(sagemaker_session, prefix, local_dir, matrix):
                 f.extractall(local_dir)
             archive_path.unlink()
 
-    shutil.copy(local_dir / 'model.pt', local_dir / f'model-{matrix.lower()}.pt')
+    shutil.move(local_dir / 'model.pt', local_dir / f'model-{matrix.lower()}.pt')
 
 
 def copy_training_data(s3, from_bucket, from_prefix, to_bucket, to_prefix):

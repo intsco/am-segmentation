@@ -63,7 +63,7 @@ def run_inference(s3_paths, prefix, model_path):
             ]
         }
 
-    task_n = min(ceil(len(s3_paths) / INFERENCE_BATCH_SIZE), 20)
+    task_n = min(ceil(len(s3_paths) / INFERENCE_BATCH_SIZE), 30)
     task_config = dict(**config['aws']['ecs'], count=task_n)
     set_container_environment(task_config, model_path)
     run_wait_for_inference_task(
@@ -100,7 +100,7 @@ def register_ablation_marks_at_path(data_path, groups, acq_grid_shape):
 
 
 @time_it
-def run_am_pipeline(data_path, groups, acq_grid_shape, model_local_path, register):
+def run_am_pipeline(data_path, groups, acq_grid_shape, tile_size, model_local_path, register):
     if not groups:
         groups = find_all_groups(data_path)
 
@@ -108,7 +108,10 @@ def run_am_pipeline(data_path, groups, acq_grid_shape, model_local_path, registe
         data_path / 'source', data_path / 'source_norm', groups=groups, func=normalize_source
     )
     iterate_groups(
-        data_path / 'source_norm', data_path / 'tiles', groups=groups, func=slice_to_tiles
+        data_path / 'source_norm',
+        data_path / 'tiles',
+        groups=groups,
+        func=partial(slice_to_tiles, tile_size=tile_size)
     )
 
     prefix = str(uuid4())
@@ -124,7 +127,7 @@ def run_am_pipeline(data_path, groups, acq_grid_shape, model_local_path, registe
         data_path / 'tiles',
         data_path / 'tiles_stitched',
         groups=groups,
-        func=partial(stitch_tiles_at_path, image_ext='tiff')
+        func=partial(stitch_tiles_at_path, tile_size=tile_size, image_ext='tiff')
     )
     iterate_groups(
         data_path / 'tiles_stitched',
@@ -141,6 +144,7 @@ def parse_args():
     parser.add_argument('ds_path', type=str, help='Dataset directory path')
     parser.add_argument('groups', nargs='*')
     parser.add_argument('--model-path', type=str, required=True, help='Path to model file')
+    parser.add_argument('--tile-size', type=int, default=512)
     parser.add_argument('--rows', type=int)
     parser.add_argument('--cols', type=int)
     parser.add_argument('--debug', dest='debug', action='store_true')
@@ -167,6 +171,7 @@ if __name__ == '__main__':
         data_path=Path(args.ds_path),
         groups=args.groups,
         acq_grid_shape=(args.rows, args.cols),
+        tile_size=args.tile_size,
         model_local_path=args.model_path,
         register=args.register
     )

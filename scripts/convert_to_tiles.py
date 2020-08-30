@@ -10,6 +10,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('ds_path', type=str)
     parser.add_argument('groups', nargs='*')
+    parser.add_argument('--tile-size', default=512, type=int)
     args = parser.parse_args()
     init_logger()
 
@@ -20,4 +21,9 @@ if __name__ == '__main__':
 
     groups = args.groups or find_all_groups(data_path)
     iterate_groups(source_path, source_norm_path, groups=groups, func=normalize_source)
-    iterate_groups(source_norm_path, tiles_path, groups=groups, func=slice_to_tiles)
+    iterate_groups(
+        source_norm_path,
+        tiles_path,
+        groups=groups,
+        func=partial(slice_to_tiles, tile_size=args.tile_size)
+    )

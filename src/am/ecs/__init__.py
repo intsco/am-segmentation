@@ -7,7 +7,7 @@ import boto3
 import torch
 import cv2
 from albumentations.pytorch.functional import img_to_tensor
-from albumentations import Compose, Normalize
+from albumentations import Compose, Normalize, Resize
 from torch.utils.data import Dataset
 
 from am.utils import time_it
@@ -36,7 +36,7 @@ def upload_images_to_s3(local_paths, bucket, s3_paths, queue_url=None):
 
 
 def upload_model(local_path, bucket, s3_path):
-    logger.debug(f'Uploading model file {local_path} to s3://{bucket}/{s3_path}')
+    logger.info(f'Uploading model file {local_path} to s3://{bucket}/{s3_path}')
     s3 = boto3.client('s3')
     s3.upload_file(str(local_path), bucket, s3_path)
     return f's3://{bucket}/{s3_path}'
@@ -80,7 +80,7 @@ class AMDataset(Dataset):
 
     def __init__(self, image_paths):
         self._image_paths = image_paths
-        self._transform = Compose([Normalize(p=1), ], p=1)
+        self._transform = Compose([Normalize(), Resize(512, 512)])
 
     def __len__(self):
         return len(self._image_paths)
@@ -144,7 +144,7 @@ def list_images_on_s3(bucket, prefix):
 def run_wait_for_inference_task(task_config, stop_callback, sleep_interval=10, timeout=300):
     ecs = boto3.client('ecs')
     task_n = task_config.pop('count')
-    assert 0 < task_n <= 20
+    # assert 0 < task_n <= 30
     ecs_max_task_n = 10
 
     task_arns = []
