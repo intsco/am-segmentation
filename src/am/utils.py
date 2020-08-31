@@ -42,6 +42,8 @@ def time_it(func):
 
 
 def read_image(path):
+    if not Path(path).exists():
+        raise Exception(f'Image file not found: {path}')
     return cv2.imread(str(path))[:, :, 0]  # because ch0==ch1==ch2
 
 
