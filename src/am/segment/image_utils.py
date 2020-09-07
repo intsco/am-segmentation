@@ -53,12 +53,17 @@ def stitch_tiles(tiles, tile_size, tile_row_n, tile_col_n):
 
 
 def overlay_source_mask(source: np.ndarray, mask: np.ndarray, alpha: float = 0.3) -> Image:
-    max_size = max(max(source.shape), max(mask.shape))
+    if max(source.shape) > max(mask.shape):
+        new_shape = source.shape
+    else:
+        new_shape = mask.shape
+    new_size = (new_shape[1], new_shape[0])
+
     mask_3ch = np.array(Image.fromarray(mask).convert('RGB'))
     mask_3ch[mask > 127] = [255, 255, 0]  # make ablation marks yellow
     return Image.blend(
-        Image.fromarray(source).resize((max_size, max_size)).convert('RGB'),
-        Image.fromarray(mask_3ch).resize((max_size, max_size)),
+        Image.fromarray(source).resize(new_size).convert('RGB'),
+        Image.fromarray(mask_3ch).resize(new_size),
         alpha
     )
 

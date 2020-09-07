@@ -40,7 +40,7 @@ def save_history_overlay(history, path):
     overlay_path = Path(path)
     overlay_path.mkdir(exist_ok=True)
     for i, overlay in enumerate(history.overlay, 1):
-        save_rgb_image(np.array(overlay), overlay_path / f'{i}.png')
+        save_rgb_image(np.array(overlay), overlay_path / f'{i:02}.png')
 
 
 def plot_images_grid(images, ncols=3):
