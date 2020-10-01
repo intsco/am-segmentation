@@ -48,7 +48,7 @@ def read_image(path):
 
 
 def save_model(model, model_path):
-    print(f'Saving model to {model_path}')
+    logger.info(f'Saving model to {model_path}')
     model_path.parent.mkdir(exist_ok=True)
     torch.save(model.state_dict(), model_path)
 
@@ -57,8 +57,9 @@ def load_model(model_path):
     logger.info(f'Loading model from "{model_path}"')
 
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    model = smp.Unet(encoder_name='se_resnext50_32x4d',
-                     encoder_weights=None, decoder_use_batchnorm=True)
+    model = smp.Unet(
+        encoder_name='se_resnext50_32x4d', encoder_weights=None, decoder_use_batchnorm=True
+    )
     if torch.cuda.device_count() > 1:
         logger.info("Gpu count: {}".format(torch.cuda.device_count()))
         model = nn.DataParallel(model)
