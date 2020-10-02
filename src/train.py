@@ -84,6 +84,13 @@ if __name__ == '__main__':
     ])
     history += train_loop(model, train_dl, valid_dl, optimizer, criterion, args.epochs)
 
+    # Third round: encoder + decoder, lower lrs
+    optimizer = torch.optim.Adam([
+        {'params': model.encoder.parameters(), 'lr': args.lr_enc_2 / 10},
+        {'params': model.decoder.parameters(), 'lr': args.lr_dec_1 / 100},
+    ])
+    history += train_loop(model, train_dl, valid_dl, optimizer, criterion, args.epochs)
+
     # Save model and outputs
     save_output_data(convert_history_to_tuple(history), Path(args.output_data_dir))
     save_model(model, Path(args.model_dir) / 'model.pt')

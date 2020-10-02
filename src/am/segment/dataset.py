@@ -98,6 +98,10 @@ def create_image_mask_dfs(data_path):
 
 def create_ds(data_path, transform=None, groups=None, size=None):
     image_df, mask_df = create_image_mask_dfs(Path(data_path))
+    image_n, mask_n = len(image_df), len(mask_df)
+    assert image_n > 0, f'No image files found at {data_path}'
+    assert image_n == mask_n, f'Different number of source and mask files: {image_n} != {mask_n}'
+
     if groups:
         image_df = image_df[image_df.group.isin(groups)]
         mask_df = mask_df[mask_df.group.isin(groups)]

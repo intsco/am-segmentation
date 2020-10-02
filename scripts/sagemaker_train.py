@@ -60,7 +60,7 @@ if __name__ == '__main__':
     sagemaker_session, s3 = init_aws_clients()
 
     role = 'arn:aws:iam::236062312728:role/AM-SegmSageMakerRole'
-    image_uri = '236062312728.dkr.ecr.eu-west-1.amazonaws.com/am-segm/sagemaker-pytorch-train-gpu:latest'
+    image_uri = '236062312728.dkr.ecr.eu-west-1.amazonaws.com/am-segm/sagemaker-pytorch-train:latest'
     am_bucket = 'am-segm'
     training_data_prefix = f'training-data-{args.matrix.lower()}'
     sagemaker_bucket = sagemaker_session.default_bucket()
@@ -79,7 +79,7 @@ if __name__ == '__main__':
         'batch-size': 4,
         'num-workers': num_workers,
         'lr-dec-1': 3e-2,
-        'lr-enc-2': 3e-4
+        'lr-enc-2': 3e-4,
     }
     pytorch_estimator = fit_estimator(args.local)
 

@@ -96,7 +96,7 @@ def plot_am_labels(
     #     ax.imshow(mask, cmap='viridis', interpolation=None, alpha=0.3)
 
     circle_size = (4 * 72 / fig.dpi) ** 2  # circle size (diameter**2) in points
-    fontsize = 10 * 72 / fig.dpi  # text size in points
+    fontsize = 7 * 72 / fig.dpi  # text size in points
     ys, xs = zip(*centers)
     ax.scatter(xs, ys, color='blue', s=circle_size, linewidth=0)
     for (y, x), label in zip(centers, labels):

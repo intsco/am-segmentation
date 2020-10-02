@@ -5,8 +5,8 @@
 
 # The argument to this script is the image name. This will be used as the image on the local
 # machine and combined with the account and region to form the repository name for ECR.
-image=$1
-processor_type=${2:-cpu}
+image=${1:-"am-segm/sagemaker-pytorch-train"}
+processor_type=${2:-"gpu"}
 
 if [ "$image" == "" ]; then
     echo "Usage: $0 <image-name> [<processor_type>]"
