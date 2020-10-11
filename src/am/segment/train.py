@@ -6,7 +6,7 @@ import torch
 
 from am.segment.image_utils import overlay_source_mask
 from am.segment.loss import jaccard, CombinedLoss
-from am.segment.utils import convert_to_image
+from am.segment.visual import convert_to_image
 from am.utils import dict_to_namedtuple
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -109,6 +109,7 @@ def train_loop(model, train_dl, valid_dl=None,
         elapsed = int(time.time() - start)
         print(f'{elapsed // 60} min {elapsed % 60} sec')
 
+    print(f'Loading best model from {best_model_path}')
     checkpoint = torch.load(best_model_path)
     model.load_state_dict(checkpoint)
 

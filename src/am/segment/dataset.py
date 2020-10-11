@@ -8,7 +8,8 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 import albumentations as albu
 from albumentations.pytorch.transforms import img_to_tensor
-import cv2
+
+from am.segment.image_utils import read_image
 
 
 def default_transform(p=1):
@@ -51,15 +52,17 @@ class AMDataset(Dataset):
     def __len__(self):
         return len(self.mask_df)
 
-    def _read_image(self, path, one_channel):
-        image = cv2.imread(str(path))
+    @staticmethod
+    def _read_image(path, one_channel):
+        image = read_image(path, ch_n=1 if one_channel else 3)
         if one_channel:
-            image = image[:, :, :1]  # because ch0==ch1==ch2
+            image = image[:, :, None]
         return image
 
     def __getitem__(self, idx):
         image_path = self.image_df.iloc[idx].path
         image = self._read_image(image_path, one_channel=False)
+
         mask_path = self.mask_df.iloc[idx].path
         if mask_path.exists():
             mask = self._read_image(mask_path, one_channel=True)

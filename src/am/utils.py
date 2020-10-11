@@ -41,14 +41,9 @@ def time_it(func):
     return wrapper
 
 
-def read_image(path):
-    if not Path(path).exists():
-        raise Exception(f'Image file not found: {path}')
-    return cv2.imread(str(path))[:, :, 0]  # because ch0==ch1==ch2
-
-
 def save_model(model, model_path):
     logger.info(f'Saving model to {model_path}')
+    model_path = Path(model_path)
     model_path.parent.mkdir(exist_ok=True)
     torch.save(model.state_dict(), model_path)
 

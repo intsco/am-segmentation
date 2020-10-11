@@ -30,7 +30,7 @@ COPY src/requirements.txt /opt/ml/requirements.txt
 RUN pip install -r /opt/ml/requirements.txt
 
 COPY src/am /opt/ml/code/am
-COPY src/train.py /opt/ml/code/
+COPY src/sagemaker_train.py /opt/ml/code/
 
 # this environment variable is used by the SageMaker PyTorch container to determine our user code directory.
 ENV SAGEMAKER_SUBMIT_DIRECTORY /opt/ml/code
@@ -38,4 +38,4 @@ ENV SAGEMAKER_SUBMIT_DIRECTORY /opt/ml/code
 # this environment variable is used by the SageMaker PyTorch container to determine our program entry point
 # for training and serving.
 # For more information: https://github.com/aws/sagemaker-pytorch-container
-ENV SAGEMAKER_PROGRAM train.py
+ENV SAGEMAKER_PROGRAM sagemaker_train.py

@@ -41,18 +41,7 @@ def pad_slice_image(image, tile_size, target_size):
     return tiles
 
 
-def stitch_tiles(tiles, tile_size, tile_row_n, tile_col_n):
-    image = np.zeros(
-        (tile_size * tile_row_n, tile_size * tile_col_n), dtype=np.uint8
-    )
-    for i in range(tile_row_n):
-        for j in range(tile_col_n):
-            tile = tiles[i * tile_col_n + j]
-            image[i*tile_size:(i+1)*tile_size, j*tile_size:(j+1)*tile_size] = tile
-    return image
-
-
-def overlay_source_mask(source: np.ndarray, mask: np.ndarray, alpha: float = 0.3) -> Image:
+def overlay_source_mask(source: np.ndarray, mask: np.ndarray, alpha: float = 0.3) -> np.ndarray:
     if max(source.shape) > max(mask.shape):
         new_shape = source.shape
     else:
@@ -60,16 +49,43 @@ def overlay_source_mask(source: np.ndarray, mask: np.ndarray, alpha: float = 0.3
     new_size = (new_shape[1], new_shape[0])
 
     mask_3ch = np.array(Image.fromarray(mask).convert('RGB'))
-    mask_3ch[mask > 127] = [255, 255, 0]  # make ablation marks yellow
-    return Image.blend(
+    mask_3ch[mask > 127] = [255, 0, 0]  # make ablation marks red
+    overlay = Image.blend(
         Image.fromarray(source).resize(new_size).convert('RGB'),
         Image.fromarray(mask_3ch).resize(new_size),
         alpha
     )
+    return np.array(overlay)
+
+
+def read_image(path: Path, ch_n: int = None) -> np.ndarray:
+    if not Path(path).exists():
+        raise Exception(f'Image file not found: {path}')
+
+    img = cv2.imread(str(path))
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+    if ch_n is None:
+        ch1, ch2, ch3 = img.sum(axis=(0, 1))
+        ch_n = 1 if ch1 == ch2 == ch3 else 3
+
+    if ch_n == 1:
+        return img[:, :, 0]  # because ch0==ch1==ch2
+    else:
+        return img
 
 
 def save_rgb_image(array, path):
-    cv2.imwrite(str(path), cv2.cvtColor(array, cv2.COLOR_RGB2BGR))
+    """@Deprecated"""
+    save_image(array, path)
+
+
+def save_image(array: np.ndarray, path: Path):
+    if array.ndim == 3:
+        res = cv2.imwrite(str(path), cv2.cvtColor(array, cv2.COLOR_RGB2BGR))
+    else:
+        res = cv2.imwrite(str(path), array)
+    assert res, f'Failed to save {path}'
 
 
 def overlay_tiles(input_path: Path):
@@ -85,10 +101,10 @@ def overlay_tiles(input_path: Path):
             image_fn = source_tile_path.name
             logger.debug(f'Overlaying {image_fn}')
 
-            source_tile = cv2.imread(str(source_tile_path), cv2.IMREAD_GRAYSCALE)
+            source_tile = read_image(source_tile_path)
 
             mask_tile_path = mask_path / image_fn
-            mask_tile = cv2.imread(str(mask_tile_path), cv2.IMREAD_GRAYSCALE)
+            mask_tile = read_image(mask_tile_path)
 
             overlay = overlay_source_mask(source_tile, mask_tile)
             save_rgb_image(np.array(overlay), overlay_path / image_fn)
@@ -98,7 +114,10 @@ def overlay_tiles(input_path: Path):
 
 
 def normalize(img):
-    return np.uint8((img - img.min()) / (img.max() - img.min()) * 255)
+    """Axes order: [h, w, ch] or [h, w]"""
+    return np.uint8(
+        (img - img.min(axis=(0, 1))) / (img.max(axis=(0, 1)) - img.min(axis=(0, 1))) * 255
+    )
 
 
 def clip(img, q1=1, q2=99):

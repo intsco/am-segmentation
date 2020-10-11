@@ -5,11 +5,11 @@ from collections import Counter
 
 import boto3
 import torch
-import cv2
 from albumentations.pytorch.functional import img_to_tensor
 from albumentations import Compose, Normalize, Resize
 from torch.utils.data import Dataset
 
+from am.segment.image_utils import read_image, save_image
 from am.utils import time_it
 
 logger = logging.getLogger('am-segm')
@@ -87,7 +87,7 @@ class AMDataset(Dataset):
 
     def __getitem__(self, idx):
         image_path = self._image_paths[idx]
-        image = cv2.imread(str(image_path))
+        image = read_image(image_path, ch_n=3)
         image = self._transform(image=image)['image']
         return img_to_tensor(image)
 
@@ -112,8 +112,7 @@ def save_predictions(predictions, output_paths):
             output_path.parent.mkdir(parents=True)
         image = pred * 255
         logger.debug(f'Saving prediction: {image.shape} to {output_path}')
-        res = cv2.imwrite(str(output_path), image)
-        assert res, f'Failed to save {output_path}'
+        save_image(image, output_path)
 
 
 def delete_messages(queue_url, receipt_handles):
