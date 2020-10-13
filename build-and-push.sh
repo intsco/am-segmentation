@@ -5,27 +5,19 @@
 
 # The argument to this script is the image name. This will be used as the image on the local
 # machine and combined with the account and region to form the repository name for ECR.
-image=${1:-"am-segm/sagemaker-pytorch-train"}
-processor_type=${2:-"gpu"}
 
-if [ "$image" == "" ]; then
-    echo "Usage: $0 <image-name> [<processor_type>]"
+# Validate script arguments
+image_type=$1
+
+if [ "$image_type" == "" ]; then
+    echo "Usage: $0 <image-type: train|predict>"
     exit 1
 fi
-
-# Choose base PyTorch image version
-if [ "$processor_type" == "cpu" ]; then
-    pytorch_image_version=1.5.1-cpu-py36-ubuntu16.04
-else
-    pytorch_image_version=1.5.1-gpu-py36-cu101-ubuntu16.04
-fi
-echo "Using PyTorch image version: $pytorch_image_version"
 
 export AWS_PROFILE=am-segm
 
 # Get the account number associated with the current IAM credentials
 account=$(aws sts get-caller-identity --query Account --output text)
-
 if [ $? -ne 0 ]
 then
     exit 255
@@ -34,10 +26,23 @@ fi
 # Get the region defined in the current configuration (default to us-west-2 if none defined)
 region=$(aws configure get region)
 
-fullname="${account}.dkr.ecr.${region}.amazonaws.com/${image}:latest"
+# Choose type of model image
+if [ "$image_type" == "train" ]; then
+  image="am-segm/sagemaker-pytorch-train"
+
+  # Choose base PyTorch image version
+  pytorch_image_version=1.5.1-gpu-py36-cu101-ubuntu16.04
+  echo "Using PyTorch image version: $pytorch_image_version"
+
+  build_cmd="docker build -t ${image}
+    --build-arg REGION=${region} --build-arg VERSION=${pytorch_image_version}
+    -f sagemaker/train/Dockerfile ."
+else
+  image="am-segm/ecs-pytorch-predict"
+  build_cmd="docker build -t ${image} -f ecs/Dockerfile ."
+fi
 
 # If the repository doesn't exist in ECR, create it.
-
 aws ecr describe-repositories --repository-names "${image}" > /dev/null 2>&1
 
 if [ $? -ne 0 ]
@@ -58,13 +63,14 @@ aws ecr get-login-password --region "${region}" | docker login \
     --password-stdin \
     "${account}".dkr.ecr."${region}".amazonaws.com
 
-# Build the docker image locally with the image name and then push it to ECR
-# with the full name.
+# Build the docker image locally with the image name and then push it to ECR with the full name
+eval $build_cmd
+if [ $? -ne 0 ]
+then
+    exit 255
+fi
 
-docker build  -t "${image}" \
-  --build-arg REGION="${region}" --build-arg VERSION="${pytorch_image_version}" \
-  -f sagemaker/train/Dockerfile .
-
+# Tag image with full name and push to registry
+fullname="${account}.dkr.ecr.${region}.amazonaws.com/${image}:latest"
 docker tag "${image}" "${fullname}"
-
 docker push "${fullname}"
