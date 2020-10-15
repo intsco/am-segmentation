@@ -1,19 +1,6 @@
-aws:
-  aws_access_key_id:
-  aws_secret_access_key:
-  aws_default_region: eu-west-1
-  model_bucket:
-  input_bucket:
-  output_bucket:
-  queue_url:
-  ecs:
-    cluster:
-    taskDefinition:
-    launchType: FARGATE
-    networkConfiguration:
-      awsvpcConfiguration:
-        subnets:
-          -
-        securityGroups:
-          -
-        assignPublicIp: ENABLED
+# AWS IAM user credentials
+aws_access_key_id:
+aws_secret_access_key:
+
+# AM segm internal user
+user:

@@ -1,3 +1,4 @@
+import itertools
 import logging
 import os
 import json
@@ -25,7 +26,8 @@ def rename_image(input_image_path):
 
 def normalize_source(input_group_path, output_group_path, q1=1, q2=99):
     logger.info(f'Normalizing images at {input_group_path}')
-    for image_path in input_group_path.glob('*.tif*'):
+    image_patterns = ['*.tif*', '*.png']
+    for image_path in itertools.chain(*[input_group_path.glob(p) for p in image_patterns]):
         if image_path.name != 'mask':
             image = read_image(image_path, ch_n=3)
             image_norm = normalize(clip(image, q1, q2))
@@ -34,7 +36,7 @@ def normalize_source(input_group_path, output_group_path, q1=1, q2=99):
             image_norm_path = output_group_path / 'source.tiff'
             logger.debug(f'Saving normalized image to {image_norm_path}')
             save_image(image_norm, image_norm_path)
-            break  # use first non mask tiff image as source
+            break  # use first non mask image as source
 
 
 def slice_to_tiles(input_group_path, output_group_path, tile_size=512):

@@ -14,10 +14,9 @@ from am.ecs import (
     upload_images_to_s3,
     delete_messages,
     INFERENCE_BATCH_SIZE,
-    time_it,
 )
 from am.logger import init_logger
-from am.utils import clean_dir, load_model
+from am.utils import clean_dir, load_model, time_it
 
 local_inputs_dir = Path('/tmp/inputs')
 local_outputs_dir = Path('/tmp/outputs')

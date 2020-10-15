@@ -1,7 +1,5 @@
 import logging
 from concurrent.futures import ThreadPoolExecutor
-from time import time, sleep
-from collections import Counter
 
 import boto3
 import torch
@@ -10,7 +8,6 @@ from albumentations import Compose, Normalize, Resize
 from torch.utils.data import Dataset
 
 from am.segment.image_utils import read_image, save_image
-from am.utils import time_it
 
 logger = logging.getLogger('am-segm')
 
@@ -33,13 +30,6 @@ def upload_images_to_s3(local_paths, bucket, s3_paths, queue_url=None):
 
     with ThreadPoolExecutor() as executor:
         list(executor.map(upload, zip(local_paths, s3_paths)))
-
-
-def upload_model(local_path, bucket, s3_path):
-    logger.info(f'Uploading model file {local_path} to s3://{bucket}/{s3_path}')
-    s3 = boto3.client('s3')
-    s3.upload_file(str(local_path), bucket, s3_path)
-    return f's3://{bucket}/{s3_path}'
 
 
 def consume_messages(queue_url, n=8):
@@ -137,35 +127,3 @@ def list_images_on_s3(bucket, prefix):
         else:
             break
     return keys
-
-
-@time_it
-def run_wait_for_inference_task(task_config, stop_callback, sleep_interval=10, timeout=300):
-    ecs = boto3.client('ecs')
-    task_n = task_config.pop('count')
-    # assert 0 < task_n <= 30
-    ecs_max_task_n = 10
-
-    task_arns = []
-    while task_n > 0:
-        ecs_task_n = min(task_n, ecs_max_task_n)
-
-        logger.info(f'Running {ecs_task_n} tasks in ECS')
-        resp = ecs.run_task(count=ecs_task_n, **task_config)
-        task_arns += [t['taskArn'] for t in resp['tasks']]
-        task_n -= ecs_task_n
-        if task_n > 0:
-            sleep(5)
-
-    finish = time() + timeout
-    while time() < finish:
-        logger.debug(f'Waiting for {sleep_interval}s')
-        sleep(sleep_interval)
-        resp = ecs.describe_tasks(cluster='am-segm', tasks=task_arns)
-        task_statuses = [t['lastStatus'] for t in resp['tasks']]
-        logger.debug(f'Task statuses: {Counter(task_statuses)}')
-
-        if stop_callback():
-            break
-    else:
-        raise Exception(f'Timeout: {timeout}s')
