@@ -93,4 +93,4 @@ if __name__ == '__main__':
 
     # Save model and outputs
     save_output_data(convert_history_to_tuple(history), Path(args.output_data_dir))
-    save_model(model, Path(args.model_dir) / 'model.pt')
+    save_model(model, model_path=Path(args.model_dir) / 'model.pt')

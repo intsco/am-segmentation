@@ -2,6 +2,7 @@
 
 import logging
 import os
+import tarfile
 from pathlib import Path
 
 import boto3
@@ -27,7 +28,11 @@ logger = logging.getLogger('am-segm')
 def create_model():
     logger.info(f'Downloading model from {os.environ["MODEL_PATH"]}')
     bucket, key = os.environ['MODEL_PATH'].replace('s3://', '').split('/', 1)
-    boto3.client('s3').download_file(bucket, key, 'model.pt')
+    fname = Path(key).name
+    boto3.client('s3').download_file(bucket, key, fname)
+    if fname.endswith('.tar.gz'):
+        with tarfile.open(fname, 'r:gz') as f:
+            f.extractall()
     return load_model('model.pt')
 
 
