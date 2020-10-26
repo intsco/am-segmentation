@@ -1,17 +1,61 @@
-# Introduction
-A model with U-Net like architecture for semantic segmentation of
-imaging mass spectrometry ablation marks on microscopy images.
-The models are based on [TernausNet](https://github.com/ternaus/TernausNet)
-and [segmentation_models.pytorch](https://github.com/qubvel/segmentation_models.pytorch)
+# Intro
+The project provides tools for training and applying Deep Learning models of U-Net like architecture for semantic segmentation of microscopy images of ablation marks after MALDI imaging mass spectrometry.
+The models are based on [TernausNet](https://github.com/ternaus/TernausNet) and [segmentation_models.pytorch](https://github.com/qubvel/segmentation_models.pytorch).
 
-Image segmentation results:
+Segmentation results:
+
 ![](images/image-segm-1.png)
 ![](images/image-segm-2.png)
 ![](images/image-segm-3.png)
 
+# Local installation and setup
+
+```
+pip install -r requirements.txt
+```
+
+Create a config file and input your AWS IAM user credentials and your name. Your AWS IAM user should be in the `am-segm-users` group.
+
+```
+copy config/config.yml.template config/config.yml
+```
+
+# Getting started
+
+Download and unpack the sample dataset
+
+```
+mkdir -p data/getting-started
+cd data/getting-started
+
+wget https://am-segm.s3-eu-west-1.amazonaws.com/getting-started/training-data.zip
+unzip training-data.zip
+
+https://am-segm.s3-eu-west-1.amazonaws.com/getting-started/dataset.zip
+unzip dataset.zip
+```
+
+Train a model, specify the matrix used during MALDI acquisition. The model will be stored at your personal path in the project bucket, `s3://am-segm/<user>`. Model training information will be downloaded to the `./model` directory.
+
+```
+python scripts/train.py data/getting-started/training-data --matrix DHB
+```
+
+Use the trained model to segment the whole dataset, `--no-register` is used to skip the last ablation marks registration step
+
+```
+python scripts/inference.py data/getting-started/dataset/Luca_Well4_UL --no-register
+```
+
+Run ablation marks registration script. Based on the ablation marks segmentation mask, the script will assign ids in row-wise manner to all ablation marks, starting with 1 at the top left corner. The acquisition grid size (rows x cols) needs to be provided
+
+```
+python scripts/register_ams.py data/getting-started/dataset/Luca_Well4_UL --rows 60 --cols 60
+```
+
 # Data
-The model training was done on a wide range of different images obtained from 
-microscopy of samples after acquisition with imaging mass spectrometry.
+The model training is done on a wide range of different images obtained from 
+microscopy of samples after acquisition with MALDI imaging mass spectrometry.
 
 Sample data can be downloaded from AWS S3 using
 ```
@@ -21,7 +65,61 @@ wget https://am-segm.s3-eu-west-1.amazonaws.com/post-MALDI-IMS-microscopy.tar.gz
 It is important to notice that usually these microscopy images are quite large, e.g.
 5000x5000 pixels. As most of the segmentation networks are not designed for images
 of such resolution, additional steps for image slicing and stitching
-have to be added to the pipeline.   
+have to be added to the pipeline.
+
+## Dataset directory structure
+
+* `source` - dataset input images
+    * `Well4_UL` - dataset group, dataset has >=1 groups with one image per group
+* `source_norm` - intensity normalized images
+* `tiles` - input images split into tiles for parallel segmentation
+    * `Well4_UL/source` - input tiles
+    * `Well4_UL/mask` - predicted masks
+* `tiles_stitched` - stitched images, masks and their overlays
+* `am_coords` - final output, label encoded segmentation mask, each ablation mark has its own id
+
+```
+$ tree -d data/getting-started/dataset
+
+data/getting-started/dataset
+└── Luca_Well4_UL
+    ├── am_coords
+    │   └── Well4_UL
+    ├── source
+    │   └── Well4_UL
+    ├── source_norm
+    │   └── Well4_UL
+    ├── tiles
+    │   └── Well4_UL
+    │       ├── mask
+    │       └── source
+    └── tiles_stitched
+        └── Well4_UL
+```
+
+## Training data directory structure
+
+The top level directory has subdirectories with training and validation data accordingly
+
+* `train`, `valid` - data type
+    * `Luca_Well4_UL` - dataset name
+        * `Well4_UL` - dataset group name
+
+```
+$ tree -d data/getting-started/training-data
+
+data/getting-started/training-data
+├── train
+│   └── Luca_Well4_UL
+│       └── Well4_UL
+│           ├── mask
+│           └── source
+└── valid
+    └── Luca_Well4_UL
+        └── Well4_UL
+            ├── mask
+            └── source
+```
 
 # Training
 
@@ -30,7 +128,45 @@ The best performing model turned to be U-net with
 [segmentation_models.pytorch](https://github.com/qubvel/segmentation_models.pytorch)
 by Pavel Yakubovskiy
 
-### Pseudo-labeling
+## AWS SageMaker
+
+Add AWS IAM user credentials into the boto3 config
+
+```
+# ~/.aws/credentials
+
+[am-segm]
+aws_access_key_id = <user-key-id>
+aws_secret_access_key = <user-secret-key>
+
+```
+
+Build a Docker image for training with AWS SageMaker
+
+```
+./build-and-push.sh train
+```
+
+The script for training a dataset optimized model
+
+```
+$ python scripts/train.py -h
+
+usage: train.py [-h] --matrix MATRIX [--local] fine_tuning_path
+
+Train AM segmentation model with SageMaker
+
+positional arguments:
+  fine_tuning_path  Path to fine tuning data
+
+optional arguments:
+  -h, --help        show this help message and exit
+  --matrix MATRIX   'DHB' or 'DAN'
+  --local           Run training locally
+
+```
+
+## Pseudo-labeling
 
 As original data usually does not come with masks, a semi-supervised approach for
 getting image masks is used.
@@ -40,37 +176,61 @@ getting image masks is used.
 * The full mask for multiple images already can be used for more intensive training
 of a bigger model
 
-### Notebooks
+## Notebooks
 
 To explore the model training Jupyter notebook:
-* Install dependencies `pip install -r requirements.txt`
 * Spin up Jupyter server and open `pytorch-unet.ipynb` notebook
 
 # Inference
 
-### AWS Elastic Container Service
+## AWS Elastic Container Service (ECS)
 
-* Build a Docker image from `ecs` directory and push it to an image repository
-* Create a ECS task definition, input and output S3 buckets, and an AWS SQS queue
-* Create `config/config.yml` file from template.
-Put all required configuration variables there
-* Start the segmentation pipeline
+Add AWS IAM user credentials into the boto3 config
+
 ```
-python am/pipeline data/inference/dataset --rows 50 --cols 50
+# ~/.aws/credentials
+
+[am-segm]
+aws_access_key_id = <user-key-id>
+aws_secret_access_key = <user-secret-key>
+
 ```
 
-### AWS SageMaker
+Build a Docker image for inference (prediction) with AWS ECS
 
-* Build a Docker image from `sagemaker` directory and push it to the AWS container repository
-* Upload model file to an S3 bucket
-* Create a SageMaker batch job using `sagemaker-batch-job-example.py` 
+```
+./build-and-push.sh predict
+```
 
-### Simple API in Docker
+The script for dataset segmentation
+
+```
+$ python scripts/inference.py -h
+
+usage: inference.py [-h] [--tile-size TILE_SIZE] [--rows ROWS] [--cols COLS] [--debug] [--no-register] ds_path [groups [groups ...]]
+
+Run AM segmentation pipeline
+
+positional arguments:
+  ds_path               Dataset directory path
+  groups
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --tile-size TILE_SIZE
+  --rows ROWS
+  --cols COLS
+  --debug
+  --no-register
+
+```
+
+## Run inference container locally
 
 * Build image and start container
 ```
-docker build -t am-segm -f docker/Dockerfile .
-docker run -d -p 8000:8000 --name am-segm am-segm
+docker build -t am-segm/ecs-pytorch-predict -f ecs/Dockerfile .
+docker run -p 8000:8000 --name am-segm --rm am-segm
 ```
 
 * Submit a segmentation task

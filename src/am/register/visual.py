@@ -89,18 +89,12 @@ def plot_am_labels(
     overlay = overlay_source_mask(source, mask)
     ax.imshow(np.array(overlay), cmap='viridis', interpolation=None)
 
-    # if source is None:
-    #     ax.imshow(mask, cmap='viridis', interpolation=None)
-    # else:
-    #     ax.imshow(source, cmap='gray', interpolation=None)  # plot first channel only
-    #     ax.imshow(mask, cmap='viridis', interpolation=None, alpha=0.3)
-
-    circle_size = (4 * 72 / fig.dpi) ** 2  # circle size (diameter**2) in points
-    fontsize = 7 * 72 / fig.dpi  # text size in points
+    circle_size = (3 * 72 / fig.dpi) ** 2  # circle size (diameter**2) in points
+    fontsize = 7.5 * 72 / fig.dpi  # text size in points
     ys, xs = zip(*centers)
-    ax.scatter(xs, ys, color='blue', s=circle_size, linewidth=0)
+    ax.scatter(xs, ys, color='green', s=circle_size, linewidth=0)
     for (y, x), label in zip(centers, labels):
-        ax.text(x, y, str(label), color='red', fontsize=fontsize)
+        ax.text(x, y, str(label), color='blue', fontsize=fontsize)
 
 
 @time_it
