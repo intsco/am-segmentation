@@ -89,4 +89,4 @@ if __name__ == '__main__':
         prefix=f'{pytorch_estimator.latest_training_job.name}/output/output.tar.gz',
         local_dir=config['sagemaker']['output_artifacts_path'],
     )
-    delete_data(s3, bucket=sagemaker_bucket, prefix=config['sagemaker']['input_prefix'])
+    delete_data(s3, bucket=config['am_bucket'], prefix=config['sagemaker']['input_prefix'])
