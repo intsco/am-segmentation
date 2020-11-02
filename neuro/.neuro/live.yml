@@ -1,0 +1,34 @@
+kind: live
+title: AM segm
+id: am_segm
+
+volumes:
+  project:
+    remote: storage:${{ flow.flow_id }}
+    mount: /project
+    local: .
+
+images:
+  pytorch:
+    ref: image:${{ flow.flow_id }}:v1.0
+    dockerfile: ${{ flow.workspace }}/docker/Dockerfile
+    context: ${{ flow.workspace }}/docker
+
+jobs:
+  train:
+    image: ${{ images.pytorch.ref }}
+    preset: gpu-small
+    volumes:
+      - ${{ volumes.project.ref_rw }}
+    bash: |
+        cd ${{ volumes.project.mount }}
+        python neuro/train.py
+
+  predict:
+    image: ${{ images.pytorch.ref }}
+    preset: gpu-small
+    volumes:
+      - ${{ volumes.project.ref_rw }}
+    bash: |
+      cd ${{ volumes.project.mount }}
+      python neuro/predict.py
