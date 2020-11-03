@@ -4,10 +4,7 @@ isort
 black
 pandas
 pillow
-torch==1.5.1
-torchvision==0.6.1
 segmentation-models-pytorch==0.1.0
 opencv-python-headless>=4.1.1,<4.3
-certifi>=2020.06.20
 albumentations==0.4.5
 neuromation>=20.4.6
