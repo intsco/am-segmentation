@@ -17,18 +17,18 @@ images:
 jobs:
   train:
     image: ${{ images.pytorch.ref }}
-    preset: gpu-small
+    preset: gpu-k80-small
     volumes:
       - ${{ volumes.project.ref_rw }}
     bash: |
         cd ${{ volumes.project.mount }}
-        python neuro/train.py
+        python train.py
 
   predict:
     image: ${{ images.pytorch.ref }}
-    preset: gpu-small
+    preset: gpu-k80-small
     volumes:
       - ${{ volumes.project.ref_rw }}
     bash: |
       cd ${{ volumes.project.mount }}
-      python neuro/predict.py
+      python predict.py --data-dir data/datasets/Luca_Well4_UL
