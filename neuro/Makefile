@@ -4,18 +4,19 @@ PROJECT_ID=neuro-project-60319926
 
 ##### CONSTANTS #####
 
-DATA_DIR=neuro/data
-CONFIG_DIR=neuro/config
-CODE_DIR=.
-NOTEBOOKS_DIR=neuro/notebooks
-RESULTS_DIR=neuro/results
+#DATA_DIR=data
+#CONFIG_DIR=config
+#CODE_DIR=src
+#NOTEBOOKS_DIR=notebooks
+#RESULTS_DIR=results
 
-PROJECT_PATH_STORAGE=storage:am_segm
-PROJECT_PATH_ENV=/project
+#PROJECT_PATH_STORAGE=storage:am_segm
+#PROJECT_PATH_ENV=/project
 
-PROJECT=am-segm
+#PROJECT=am-segm
+
 SETUP_JOB=setup-$(PROJECT)
-TRAIN_JOB=train-$(PROJECT)
+#TRAIN_JOB=train-$(PROJECT)
 DEVELOP_JOB=develop-$(PROJECT)
 JUPYTER_JOB=jupyter-$(PROJECT)
 TENSORBOARD_JOB=tensorboard-$(PROJECT)
@@ -25,7 +26,7 @@ _PROJECT_TAGS=--tag "kind:project" \
               --tag "project-id:$(PROJECT_ID)"
 
 BASE_ENV=neuromation/base:$(BASE_ENV_VERSION)
-CUSTOM_ENV?=image:neuromation-$(PROJECT):$(VERSION)
+#CUSTOM_ENV?=image:neuromation-$(PROJECT):$(VERSION)
 
 ##### VARIABLES #####
 
@@ -46,7 +47,7 @@ DATA_DIR_STORAGE?=$(PROJECT_PATH_STORAGE)/$(DATA_DIR)
 # The type of the training machine (run `neuro config show`
 # to see the list of available types):
 #   make jupyter PRESET=cpu-small
-PRESET?=gpu-small
+#PRESET?=gpu-small
 
 # Extra options for `neuro run` targets:
 #   make train RUN_EXTRA="--env MYVAR=value"
@@ -61,7 +62,7 @@ HTTP_AUTH?=--http-auth
 
 # Command to run training inside the environment:
 #   make train TRAIN_CMD="python ./train.py"
-TRAIN_CMD?=python -u $(CODE_DIR)/train.py --data $(DATA_DIR)
+#TRAIN_CMD?=python -u $(CODE_DIR)/train.py --data $(DATA_DIR)
 
 # Postfix of training jobs:
 #   make train RUN=experiment-2
@@ -86,6 +87,109 @@ JUPYTER_LIFE_SPAN?=0
 SYNC?=upload-code upload-config
 
 SECRETS?=
+
+
+
+##### AM CUSTOM #####
+
+PROJECT=am-segm
+
+DATA_DIR=data
+CONFIG_DIR=config
+CODE_DIR=src
+NOTEBOOKS_DIR=notebooks
+RESULTS_DIR=results
+
+PROJECT_PATH_STORAGE=storage:$(PROJECT)
+# project path within Docker container
+PROJECT_PATH_ENV=/$(PROJECT)
+
+TRAIN_JOB=train-$(PROJECT)
+PREDICT_JOB=predict-$(PROJECT)
+
+CUSTOM_ENV=image:am-segm/pytorch:latest
+PRESET=gpu-k80-small
+
+PREDICT_DATA_DIR=  # must be provided
+
+
+.PHONY: am-setup
+am-setup: ### Setup remote environment
+	$(NEURO) mkdir --parents $(PROJECT_PATH_STORAGE)
+
+.PHONY: build-push
+build-push: ### Build image locally and push it to registry
+	docker build -t am-segm/neuro-pytorch docker
+	$(NEURO) push am-segm/neuro-pytorch $(CUSTOM_ENV)
+
+.PHONY: upload-code
+upload-code: _check_setup  ### Upload code directory to the platform storage
+	$(NEURO) cp \
+		--recursive \
+		--update \
+		--no-target-directory \
+		$(CODE_DIR) $(PROJECT_PATH_STORAGE)/$(CODE_DIR)
+
+.PHONY: upload-data
+upload-data: _check_setup  ### Upload data directory to the platform storage
+	$(NEURO) cp \
+		--recursive \
+		--update \
+		--no-target-directory \
+		$(DATA_DIR) $(PROJECT_PATH_STORAGE)/$(DATA_DIR)
+
+.PHONY: train
+train: _check_setup $(SYNC)   ### Run a training job (set up env var 'RUN' to specify the training job),
+	$(NEURO) run $(RUN_EXTRA) \
+		$(SECRETS) \
+		--name $(TRAIN_JOB)-$(RUN) \
+		--tag "target:train" $(_PROJECT_TAGS) \
+		--preset gpu-k80-small \
+		--wait-start \
+		--volume $(PROJECT_PATH_STORAGE)/$(DATA_DIR):$(PROJECT_PATH_ENV)/$(DATA_DIR):ro \
+		--volume $(PROJECT_PATH_STORAGE)/$(CODE_DIR):$(PROJECT_PATH_ENV)/$(CODE_DIR):ro \
+		--volume $(PROJECT_PATH_STORAGE)/$(CONFIG_DIR):$(PROJECT_PATH_ENV)/$(CONFIG_DIR):ro \
+		--volume $(PROJECT_PATH_STORAGE)/$(RESULTS_DIR):$(PROJECT_PATH_ENV)/$(RESULTS_DIR):rw \
+		--env PYTHONPATH=$(PROJECT_PATH_ENV)/$(CODE_DIR) \
+		--env EXPOSE_SSH=yes \
+		--life-span=1d \
+		$(CUSTOM_ENV) \
+		bash -c 'cd $(PROJECT_PATH_ENV) && python -u src/train.py --data-dir ${PREDICT_DATA_DIR}'
+
+.PHONY: download-train-results
+download-train-results: _check_setup  ### Download results directory from the platform storage
+	$(NEURO) cp \
+		--recursive \
+		--update \
+		--no-target-directory \
+		$(PROJECT_PATH_STORAGE)/$(RESULTS_DIR) $(RESULTS_DIR)
+
+.PHONY: predict
+predict: _check_setup $(SYNC)   ### Run an inference job
+	$(NEURO) run $(RUN_EXTRA) \
+		$(SECRETS) \
+		--name $(PREDICT_JOB)-$(RUN) \
+		--tag "target:train" $(_PROJECT_TAGS) \
+		--preset cpu-large \
+		--wait-start \
+		--volume $(PROJECT_PATH_STORAGE)/$(DATA_DIR):$(PROJECT_PATH_ENV)/$(DATA_DIR):ro \
+		--volume $(PROJECT_PATH_STORAGE)/$(CODE_DIR):$(PROJECT_PATH_ENV)/$(CODE_DIR):ro \
+		--volume $(PROJECT_PATH_STORAGE)/$(CONFIG_DIR):$(PROJECT_PATH_ENV)/$(CONFIG_DIR):ro \
+		--volume $(PROJECT_PATH_STORAGE)/$(RESULTS_DIR):$(PROJECT_PATH_ENV)/$(RESULTS_DIR):rw \
+		--env PYTHONPATH=$(PROJECT_PATH_ENV)/$(CODE_DIR) \
+		--env EXPOSE_SSH=yes \
+		--life-span=1d \
+		$(CUSTOM_ENV) \
+		bash -c 'cd $(PROJECT_PATH_ENV) && python -u src/predict.py --data-dir ${PREDICT_DATA_DIR}'
+
+.PHONY: download-predict-results
+download-predict-results: _check_setup  ### Download results directory from the platform storage
+	$(NEURO) cp \
+		--recursive \
+		--update \
+		--no-target-directory \
+		$(PROJECT_PATH_STORAGE)/$(RESULTS_DIR)/predictions/* $(PREDICT_DATA_DIR)
+
 
 ##### HELP #####
 
@@ -135,13 +239,13 @@ _check_setup:
 
 ##### STORAGE #####
 
-.PHONY: upload-code
-upload-code: _check_setup  ### Upload code directory to the platform storage
-	$(NEURO) cp \
-		--recursive \
-		--update \
-		--no-target-directory \
-		$(CODE_DIR) $(PROJECT_PATH_STORAGE)/$(CODE_DIR)
+#.PHONY: upload-code
+#upload-code: _check_setup  ### Upload code directory to the platform storage
+#	$(NEURO) cp \
+#		--recursive \
+#		--update \
+#		--no-target-directory \
+#		$(CODE_DIR) $(PROJECT_PATH_STORAGE)/$(CODE_DIR)
 
 .PHONY: download-code
 download-code: _check_setup  ### Download code directory from the platform storage
@@ -155,13 +259,13 @@ download-code: _check_setup  ### Download code directory from the platform stora
 clean-code: _check_setup  ### Delete code directory from the platform storage
 	$(NEURO) rm --recursive $(PROJECT_PATH_STORAGE)/$(CODE_DIR)/*
 
-.PHONY: upload-data
-upload-data: _check_setup  ### Upload data directory to the platform storage
-	$(NEURO) cp \
-		--recursive \
-		--update \
-		--no-target-directory \
-		$(DATA_DIR) $(DATA_DIR_STORAGE)
+#.PHONY: upload-data
+#upload-data: _check_setup  ### Upload data directory to the platform storage
+#	$(NEURO) cp \
+#		--recursive \
+#		--update \
+#		--no-target-directory \
+#		$(DATA_DIR) $(DATA_DIR_STORAGE)
 
 .PHONY: download-data
 download-data: _check_setup  ### Download data directory from the platform storage
@@ -227,13 +331,13 @@ upload-results: _check_setup  ### Upload results directory to the platform stora
 		--no-target-directory \
 		$(RESULTS_DIR)/ $(PROJECT_PATH_STORAGE)/$(RESULTS_DIR)
 
-.PHONY: download-results
-download-results: _check_setup  ### Download results directory from the platform storage
-		$(NEURO) cp \
-		--recursive \
-		--update \
-		--no-target-directory \
-		$(PROJECT_PATH_STORAGE)/$(RESULTS_DIR)/ $(RESULTS_DIR)
+#.PHONY: download-results
+#download-results: _check_setup  ### Download results directory from the platform storage
+#		$(NEURO) cp \
+#		--recursive \
+#		--update \
+#		--no-target-directory \
+#		$(PROJECT_PATH_STORAGE)/$(RESULTS_DIR)/ $(RESULTS_DIR)
 
 .PHONY: clean-results
 clean-results: _check_setup  ### Delete results directory from the platform storage
@@ -249,7 +353,6 @@ download-all: download-code download-data download-config download-notebooks dow
 clean-all: clean-code clean-data clean-config clean-notebooks clean-results  ### Delete code, data, config, notebooks, and results directories from the platform storage
 
 ##### JOBS #####
-
 .PHONY: develop
 develop: _check_setup $(SYNC)  ### Run a development job
 	$(NEURO) run $(RUN_EXTRA) \
@@ -285,23 +388,23 @@ port-forward-develop:  ### Forward SSH port to localhost for remote debugging
 kill-develop:  ### Terminate the development job
 	$(NEURO) kill $(DEVELOP_JOB) || :
 
-.PHONY: train
-train: _check_setup $(SYNC)   ### Run a training job (set up env var 'RUN' to specify the training job),
-	$(NEURO) run $(RUN_EXTRA) \
-		$(SECRETS) \
-		--name $(TRAIN_JOB)-$(RUN) \
-		--tag "target:train" $(_PROJECT_TAGS) \
-		--preset $(PRESET) \
-		--wait-start \
-		--volume $(DATA_DIR_STORAGE):$(PROJECT_PATH_ENV)/$(DATA_DIR):ro \
-		--volume $(PROJECT_PATH_STORAGE)/$(CODE_DIR):$(PROJECT_PATH_ENV)/$(CODE_DIR):ro \
-		--volume $(PROJECT_PATH_STORAGE)/$(CONFIG_DIR):$(PROJECT_PATH_ENV)/$(CONFIG_DIR):ro \
-		--volume $(PROJECT_PATH_STORAGE)/$(RESULTS_DIR):$(PROJECT_PATH_ENV)/$(RESULTS_DIR):rw \
-		--env PYTHONPATH=$(PROJECT_PATH_ENV) \
-		--env EXPOSE_SSH=yes \
-		--life-span=0 \
-		$(CUSTOM_ENV) \
-		bash -c 'cd $(PROJECT_PATH_ENV) && $(TRAIN_CMD)'
+#.PHONY: train
+#train: _check_setup $(SYNC)   ### Run a training job (set up env var 'RUN' to specify the training job),
+#	$(NEURO) run $(RUN_EXTRA) \
+#		$(SECRETS) \
+#		--name $(TRAIN_JOB)-$(RUN) \
+#		--tag "target:train" $(_PROJECT_TAGS) \
+#		--preset $(PRESET) \
+#		--wait-start \
+#		--volume $(DATA_DIR_STORAGE):$(PROJECT_PATH_ENV)/$(DATA_DIR):ro \
+#		--volume $(PROJECT_PATH_STORAGE)/$(CODE_DIR):$(PROJECT_PATH_ENV)/$(CODE_DIR):ro \
+#		--volume $(PROJECT_PATH_STORAGE)/$(CONFIG_DIR):$(PROJECT_PATH_ENV)/$(CONFIG_DIR):ro \
+#		--volume $(PROJECT_PATH_STORAGE)/$(RESULTS_DIR):$(PROJECT_PATH_ENV)/$(RESULTS_DIR):rw \
+#		--env PYTHONPATH=$(PROJECT_PATH_ENV) \
+#		--env EXPOSE_SSH=yes \
+#		--life-span=0 \
+#		$(CUSTOM_ENV) \
+#		bash -c 'cd $(PROJECT_PATH_ENV) && $(TRAIN_CMD)'
 
 .PHONY: kill-train
 kill-train:  ### Terminate the training job (set up env var 'RUN' to specify the training job)
