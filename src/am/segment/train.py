@@ -24,12 +24,12 @@ def convert_history_to_tuple(history):
 
 def train_loop(model, train_dl, valid_dl=None,
                optimizer=None, criterion=None,
-               n_epochs=1, writer=None):
+               n_epochs=1, model_dir='.', writer=None):
     print(f'Starting training loop. Using {device} device')
 
     start = time.time()
     best_valid_metric = 0
-    best_model_path = Path('./best_model.pt')
+    best_model_path = Path(model_dir) / 'best_model.pt'
     history = []
     for epoch in range(0, n_epochs):
         print(f'Epoch {epoch + 1}/{n_epochs}')
