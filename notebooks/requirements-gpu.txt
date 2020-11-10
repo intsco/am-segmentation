@@ -1,0 +1,17 @@
+opencv-python
+numpy
+matplotlib
+albumentations
+scikit-image>=0.16.2  # update old version installed by albumentations
+pillow<7  # fix broken Pillow 7
+dask>=2.9.1  # to remove yaml warning
+scikit-learn
+pandas
+ipykernel
+tensorboardX
+tensorboard
+boto3
+pyyaml
+segmentation-models-pytorch==0.1.0
+torch==1.5.1
+torchvision==0.6.1
