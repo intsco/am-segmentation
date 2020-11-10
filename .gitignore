@@ -103,6 +103,7 @@ venv.bak/
 # mypy
 .mypy_cache/
 
+# am-segm
 .idea/
 /data/
 /config/config.yml
@@ -111,3 +112,4 @@ venv.bak/
 /neuro/data/
 /neuro/results/
 /results/
+.setup_done
