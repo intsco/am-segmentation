@@ -8,19 +8,20 @@ Segmentation results:
 ![](images/image-segm-2.png)
 ![](images/image-segm-3.png)
 
-# Local installation and setup
+# Installation and setup (user)
 
+Install the neu.ro client and sign up for the service.
+```
+pip install -U neuromation
+neuro login
+```
+
+# Installation and setup (admin)
+
+Install the dependencies for local development
 ```
 pip install -r requirements.txt
 ```
-
-Create a config file and input your AWS IAM user credentials and your name. Your AWS IAM user should be in the `am-segm-users` group.
-
-```
-copy config/config.yml.template config/config.yml
-```
-
-# Admin setup
 
 Build a Docker image. Grant permissions to use the Docker image
 ```
@@ -30,7 +31,7 @@ make share-image SHARE_WITH_USER=<user>
 
 # Getting started
 
-Download and unpack the sample dataset
+Download and unpack sample data
 
 ```
 mkdir -p data/getting-started
