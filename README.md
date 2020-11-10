@@ -20,6 +20,14 @@ Create a config file and input your AWS IAM user credentials and your name. Your
 copy config/config.yml.template config/config.yml
 ```
 
+# Admin setup
+
+Build a Docker image. Grant permissions to use the Docker image
+```
+make build-push
+make share-image SHARE_WITH_USER=<user>
+```
+
 # Getting started
 
 Download and unpack the sample dataset
@@ -33,22 +41,27 @@ unzip training-data.zip
 
 https://am-segm.s3-eu-west-1.amazonaws.com/getting-started/dataset.zip
 unzip dataset.zip
+
+cd ../..
 ```
 
-Train a model, specify the matrix used during MALDI acquisition. The model will be stored at your personal path in the project bucket, `s3://am-segm/<user>`. Model training information will be downloaded to the `./model` directory.
-
+Upload the training data to neu.ro and train a model
 ```
-python scripts/train.py data/getting-started/training-data --matrix DHB
+make upload-train-data TRAIN_DATA_DIR=data/getting-started/training-data
+make train TRAIN_DATA_DIR=data/getting-started/training-data
+make download-train-results
 ```
 
-Use the trained model to segment the whole dataset, `--no-register` is used to skip the last ablation marks registration step
-
+Split the dataset images into tiles, upload them to neu.ro and use the trained model to segment the dataset
 ```
-python scripts/inference.py data/getting-started/dataset/Luca_Well4_UL --no-register
+python scripts/split_to_tiles.py data/getting-started/dataset/Luca_Well4_UL
+make upload-predict-data PREDICT_DATA_DIR=data/getting-started/dataset/Luca_Well4_UL/tiles
+make predict PREDICT_DATA_DIR=data/getting-started/dataset/Luca_Well4_UL/tiles
+make download-predict-results PREDICT_DATA_DIR=data/getting-started/dataset/Luca_Well4_UL/tiles
+python scripts/stitch_tiles.py data/getting-started/dataset/Luca_Well4_UL
 ```
 
 Run ablation marks registration script. Based on the ablation marks segmentation mask, the script will assign ids in row-wise manner to all ablation marks, starting with 1 at the top left corner. The acquisition grid size (rows x cols) needs to be provided
-
 ```
 python scripts/register_ams.py data/getting-started/dataset/Luca_Well4_UL --rows 60 --cols 60
 ```

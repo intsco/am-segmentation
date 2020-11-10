@@ -4,19 +4,7 @@ PROJECT_ID=neuro-project-60319926
 
 ##### CONSTANTS #####
 
-#DATA_DIR=data
-#CONFIG_DIR=config
-#CODE_DIR=src
-#NOTEBOOKS_DIR=notebooks
-#RESULTS_DIR=results
-
-#PROJECT_PATH_STORAGE=storage:am_segm
-#PROJECT_PATH_ENV=/project
-
-#PROJECT=am-segm
-
 SETUP_JOB=setup-$(PROJECT)
-#TRAIN_JOB=train-$(PROJECT)
 DEVELOP_JOB=develop-$(PROJECT)
 JUPYTER_JOB=jupyter-$(PROJECT)
 TENSORBOARD_JOB=tensorboard-$(PROJECT)
@@ -26,7 +14,6 @@ _PROJECT_TAGS=--tag "kind:project" \
               --tag "project-id:$(PROJECT_ID)"
 
 BASE_ENV=neuromation/base:$(BASE_ENV_VERSION)
-#CUSTOM_ENV?=image:neuromation-$(PROJECT):$(VERSION)
 
 ##### VARIABLES #####
 
@@ -84,7 +71,7 @@ JUPYTER_LIFE_SPAN?=0
 
 # Storage synchronization:
 #  make jupyter SYNC=""
-SYNC?=upload-code upload-config
+#SYNC?=upload-code upload-config
 
 SECRETS?=
 
@@ -107,11 +94,16 @@ PROJECT_PATH_ENV=/$(PROJECT)
 TRAIN_JOB=train-$(PROJECT)
 PREDICT_JOB=predict-$(PROJECT)
 
-CUSTOM_ENV=image:am-segm/pytorch:latest
+DOCKER_IMAGE=am-segm/neuro-pytorch
+CUSTOM_ENV=image:/intsco/$(DOCKER_IMAGE):latest
 PRESET=gpu-k80-small
 
-TRAIN_DATA_DIR=  # must be provided
-PREDICT_DATA_DIR=  # must be provided
+SYNC?=upload-code
+
+# Must be provided as arguments
+TRAIN_DATA_DIR=
+PREDICT_DATA_DIR=
+SHARE_WITH_USER=
 
 
 .PHONY: am-setup
@@ -120,8 +112,12 @@ am-setup: ### Setup remote environment
 
 .PHONY: build-push
 build-push: ### Build image locally and push it to registry
-	docker build -t am-segm/neuro-pytorch neuro
-	$(NEURO) push am-segm/neuro-pytorch $(CUSTOM_ENV)
+	docker build -t $(DOCKER_IMAGE) neuro
+	$(NEURO) push $(DOCKER_IMAGE) $(CUSTOM_ENV)
+
+.PHONY: build-push
+share-image: ### Grant access to image in registry
+	neuro share image:$(DOCKER_IMAGE) $(SHARE_WITH_USER) read
 
 .PHONY: upload-code
 upload-code: _check_setup  ### Upload code directory to the platform storage
@@ -133,6 +129,7 @@ upload-code: _check_setup  ### Upload code directory to the platform storage
 
 .PHONY: upload-train-data
 upload-train-data: _check_setup  ### Upload training data directory to the platform storage
+	$(NEURO) mkdir --parents $(PROJECT_PATH_STORAGE)/$(TRAIN_DATA_DIR)
 	$(NEURO) cp \
 		--recursive \
 		--update \
@@ -200,6 +197,7 @@ download-predict-results: _check_setup  ### Download results directory from the 
 		$(PROJECT_PATH_STORAGE)/$(RESULTS_DIR)/predictions/* $(PREDICT_DATA_DIR)
 
 
+
 ##### HELP #####
 
 .PHONY: help
@@ -210,103 +208,19 @@ help:
 
 ##### SETUP #####
 
-.PHONY: setup
-setup: ### Setup remote environment
-	$(NEURO) mkdir --parents $(PROJECT_PATH_STORAGE) \
-		$(PROJECT_PATH_STORAGE)/$(CODE_DIR) \
-		$(DATA_DIR_STORAGE) \
-		$(PROJECT_PATH_STORAGE)/$(CONFIG_DIR) \
-		$(PROJECT_PATH_STORAGE)/$(NOTEBOOKS_DIR) \
-		$(PROJECT_PATH_STORAGE)/$(RESULTS_DIR)
-	$(NEURO) cp requirements.txt $(PROJECT_PATH_STORAGE)
-	$(NEURO) cp apt.txt $(PROJECT_PATH_STORAGE)
-	$(NEURO) cp setup.cfg $(PROJECT_PATH_STORAGE)
-	$(NEURO) run $(RUN_EXTRA) \
-		$(SECRETS) \
-		--name $(SETUP_JOB) \
-		--tag "target:setup" $(_PROJECT_TAGS) \
-		--preset cpu-small \
-		--detach \
-		--life-span=1h \
-		--volume $(PROJECT_PATH_STORAGE):$(PROJECT_PATH_ENV):ro \
-		$(BASE_ENV) \
-		'sleep infinity'
-	$(NEURO) exec --no-key-check -T $(SETUP_JOB) "bash -c 'export DEBIAN_FRONTEND=noninteractive && apt-get -qq update && cat $(PROJECT_PATH_ENV)/apt.txt | tr -d \"\\r\" | xargs -I % apt-get -qq install --no-install-recommends % && apt-get -qq clean && apt-get autoremove && rm -rf /var/lib/apt/lists/*'"
-	$(NEURO) exec --no-key-check -T $(SETUP_JOB) "bash -c 'pip install --progress-bar=off -U --no-cache-dir -r $(PROJECT_PATH_ENV)/requirements.txt'"
-	$(NEURO) exec --no-key-check -T $(SETUP_JOB) "bash -c 'ssh-keygen -f /id_rsa -t rsa -N neuromation -q'"
-	$(NEURO) --network-timeout 300 job save $(SETUP_JOB) $(CUSTOM_ENV)
-	$(NEURO) kill $(SETUP_JOB) || :
-	@touch .setup_done
-
-.PHONY: kill-setup
-kill-setup:  ### Terminate the setup job (if it was not killed by `make setup` itself)
-	$(NEURO) kill $(SETUP_JOB) || :
-
 .PHONY: _check_setup
 _check_setup:
 	@test -f .setup_done || { echo "Please run 'make setup' first"; false; }
 
 ##### STORAGE #####
 
-#.PHONY: upload-code
-#upload-code: _check_setup  ### Upload code directory to the platform storage
-#	$(NEURO) cp \
-#		--recursive \
-#		--update \
-#		--no-target-directory \
-#		$(CODE_DIR) $(PROJECT_PATH_STORAGE)/$(CODE_DIR)
-
-.PHONY: download-code
-download-code: _check_setup  ### Download code directory from the platform storage
-	$(NEURO) cp \
-		--recursive \
-		--update \
-		--no-target-directory \
-		$(PROJECT_PATH_STORAGE)/$(CODE_DIR) $(CODE_DIR)
-
 .PHONY: clean-code
 clean-code: _check_setup  ### Delete code directory from the platform storage
 	$(NEURO) rm --recursive $(PROJECT_PATH_STORAGE)/$(CODE_DIR)/*
 
-#.PHONY: upload-data
-#upload-data: _check_setup  ### Upload data directory to the platform storage
-#	$(NEURO) cp \
-#		--recursive \
-#		--update \
-#		--no-target-directory \
-#		$(DATA_DIR) $(DATA_DIR_STORAGE)
-
-.PHONY: download-data
-download-data: _check_setup  ### Download data directory from the platform storage
-	$(NEURO) cp \
-		--recursive \
-		--update \
-		--no-target-directory \
-		$(DATA_DIR_STORAGE) $(DATA_DIR)
-
 .PHONY: clean-data
 clean-data: _check_setup  ### Delete data directory from the platform storage
 	$(NEURO) rm --recursive $(DATA_DIR_STORAGE)/*
-
-.PHONY: upload-config
-upload-config: _check_setup  ### Upload config directory to the platform storage
-#	$(NEURO) cp \
-#		--recursive \
-#		--update \
-#		--no-target-directory \
-#		$(CONFIG_DIR) $(PROJECT_PATH_STORAGE)/$(CONFIG_DIR)
-
-.PHONY: download-config
-download-config: _check_setup  ### Download config directory from the platform storage
-	$(NEURO) cp \
-		--recursive \
-		--update \
-		--no-target-directory \
-		$(PROJECT_PATH_STORAGE)/$(CONFIG_DIR) $(CONFIG_DIR)
-
-.PHONY: clean-config
-clean-config: _check_setup  ### Delete config directory from the platform storage
-	$(NEURO) rm --recursive $(PROJECT_PATH_STORAGE)/$(CONFIG_DIR)/*
 
 .PHONY: upload-notebooks
 upload-notebooks: _check_setup  ### Upload notebooks directory to the platform storage
@@ -340,93 +254,18 @@ upload-results: _check_setup  ### Upload results directory to the platform stora
 		--no-target-directory \
 		$(RESULTS_DIR)/ $(PROJECT_PATH_STORAGE)/$(RESULTS_DIR)
 
-#.PHONY: download-results
-#download-results: _check_setup  ### Download results directory from the platform storage
-#		$(NEURO) cp \
-#		--recursive \
-#		--update \
-#		--no-target-directory \
-#		$(PROJECT_PATH_STORAGE)/$(RESULTS_DIR)/ $(RESULTS_DIR)
-
 .PHONY: clean-results
 clean-results: _check_setup  ### Delete results directory from the platform storage
 	$(NEURO) rm --recursive $(PROJECT_PATH_STORAGE)/$(RESULTS_DIR)/*
 
-.PHONY: upload-all
-upload-all: upload-code upload-data upload-config upload-notebooks upload-results  ### Upload code, data, config, notebooks, and results directories to the platform storage
-
-.PHONY: download-all
-download-all: download-code download-data download-config download-notebooks download-results  ### Download code, data, config, notebooks, and results directories from the platform storage
-
-.PHONY: clean-all
-clean-all: clean-code clean-data clean-config clean-notebooks clean-results  ### Delete code, data, config, notebooks, and results directories from the platform storage
-
-##### JOBS #####
-.PHONY: develop
-develop: _check_setup $(SYNC)  ### Run a development job
-	$(NEURO) run $(RUN_EXTRA) \
-		$(SECRETS) \
-		--name $(DEVELOP_JOB) \
-		--tag "target:develop" $(_PROJECT_TAGS) \
-		--preset $(PRESET) \
-		--detach \
-		--volume $(DATA_DIR_STORAGE):$(PROJECT_PATH_ENV)/$(DATA_DIR):ro \
-		--volume $(PROJECT_PATH_STORAGE)/$(CODE_DIR):$(PROJECT_PATH_ENV)/$(CODE_DIR):rw \
-		--volume $(PROJECT_PATH_STORAGE)/$(CONFIG_DIR):$(PROJECT_PATH_ENV)/$(CONFIG_DIR):ro \
-		--volume $(PROJECT_PATH_STORAGE)/$(RESULTS_DIR):$(PROJECT_PATH_ENV)/$(RESULTS_DIR):rw \
-		--env PYTHONPATH=$(PROJECT_PATH_ENV) \
-		--env EXPOSE_SSH=yes \
-		--life-span=1d \
-		$(CUSTOM_ENV) \
-		sleep infinity
-
-.PHONY: connect-develop
-connect-develop:  ### Connect to the remote shell running on the development job
-	$(NEURO) exec --no-key-check $(DEVELOP_JOB) bash
-
-.PHONY: logs-develop
-logs-develop:  ### Connect to the remote shell running on the development job
-	$(NEURO) logs $(DEVELOP_JOB)
-
-.PHONY: port-forward-develop
-port-forward-develop:  ### Forward SSH port to localhost for remote debugging
-	@test $(LOCAL_PORT) || { echo 'Please set up env var LOCAL_PORT'; false; }
-	$(NEURO) port-forward $(DEVELOP_JOB) $(LOCAL_PORT):22
-
-.PHONY: kill-develop
-kill-develop:  ### Terminate the development job
-	$(NEURO) kill $(DEVELOP_JOB) || :
-
-#.PHONY: train
-#train: _check_setup $(SYNC)   ### Run a training job (set up env var 'RUN' to specify the training job),
-#	$(NEURO) run $(RUN_EXTRA) \
-#		$(SECRETS) \
-#		--name $(TRAIN_JOB)-$(RUN) \
-#		--tag "target:train" $(_PROJECT_TAGS) \
-#		--preset $(PRESET) \
-#		--wait-start \
-#		--volume $(DATA_DIR_STORAGE):$(PROJECT_PATH_ENV)/$(DATA_DIR):ro \
-#		--volume $(PROJECT_PATH_STORAGE)/$(CODE_DIR):$(PROJECT_PATH_ENV)/$(CODE_DIR):ro \
-#		--volume $(PROJECT_PATH_STORAGE)/$(CONFIG_DIR):$(PROJECT_PATH_ENV)/$(CONFIG_DIR):ro \
-#		--volume $(PROJECT_PATH_STORAGE)/$(RESULTS_DIR):$(PROJECT_PATH_ENV)/$(RESULTS_DIR):rw \
-#		--env PYTHONPATH=$(PROJECT_PATH_ENV) \
-#		--env EXPOSE_SSH=yes \
-#		--life-span=0 \
-#		$(CUSTOM_ENV) \
-#		bash -c 'cd $(PROJECT_PATH_ENV) && $(TRAIN_CMD)'
-
-.PHONY: kill-train
-kill-train:  ### Terminate the training job (set up env var 'RUN' to specify the training job)
-	$(NEURO) kill $(TRAIN_JOB)-$(RUN) || :
-
-.PHONY: kill-train-all
-kill-train-all:  ### Terminate all training jobs you have submitted
-	jobs=`neuro -q ps --tag "target:train" $(_PROJECT_TAGS) | tr -d "\r"` && \
-	[ ! "$$jobs" ] || $(NEURO) kill $$jobs
-
-.PHONY: connect-train
-connect-train: _check_setup  ### Connect to the remote shell running on the training job (set up env var 'RUN' to specify the training job)
-	$(NEURO) exec --no-key-check $(TRAIN_JOB)-$(RUN) bash
+#.PHONY: upload-all
+#upload-all: upload-code upload-data upload-config upload-notebooks upload-results  ### Upload code, data, config, notebooks, and results directories to the platform storage
+#
+#.PHONY: download-all
+#download-all: download-code download-data download-config download-notebooks download-results  ### Download code, data, config, notebooks, and results directories from the platform storage
+#
+#.PHONY: clean-all
+#clean-all: clean-code clean-data clean-config clean-notebooks clean-results  ### Delete code, data, config, notebooks, and results directories from the platform storage
 
 .PHONY: jupyter
 jupyter: _check_setup $(SYNC) ### Run a job with Jupyter Notebook and open UI in the default browser
@@ -457,14 +296,6 @@ jupyter: _check_setup $(SYNC) ### Run a job with Jupyter Notebook and open UI in
 .PHONY: kill-jupyter
 kill-jupyter:  ### Terminate the job with Jupyter Notebook
 	$(NEURO) kill $(JUPYTER_JOB) || :
-
-.PHONY: jupyterlab
-jupyterlab:  ### Run a job with JupyterLab and open UI in the default browser
-	@make --silent jupyter JUPYTER_MODE=lab
-
-.PHONY: kill-jupyterlab
-kill-jupyterlab:  ### Terminate the job with JupyterLab
-	@make --silent kill-jupyter
 
 .PHONY: tensorboard
 tensorboard: _check_setup  ### Run a job with TensorBoard and open UI in the default browser
