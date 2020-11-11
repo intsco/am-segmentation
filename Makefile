@@ -95,7 +95,8 @@ TRAIN_JOB=train-$(PROJECT)
 PREDICT_JOB=predict-$(PROJECT)
 
 DOCKER_IMAGE=am-segm/neuro-pytorch
-CUSTOM_ENV=image:/intsco/$(DOCKER_IMAGE):latest
+OWNER=intsco
+CUSTOM_ENV=image:/$(OWNER)/$(DOCKER_IMAGE):latest
 PRESET=gpu-k80-small
 
 SYNC?=upload-code
@@ -109,6 +110,7 @@ SHARE_WITH_USER=
 .PHONY: am-setup
 am-setup: ### Setup remote environment
 	$(NEURO) mkdir --parents $(PROJECT_PATH_STORAGE)
+	touch .setup_done
 
 .PHONY: build-push
 build-push: ### Build image locally and push it to registry
@@ -117,7 +119,7 @@ build-push: ### Build image locally and push it to registry
 
 .PHONY: build-push
 share-image: ### Grant access to image in registry
-	neuro share image:$(DOCKER_IMAGE) $(SHARE_WITH_USER) read
+	neuro share image:$(OWNER)/$(DOCKER_IMAGE) $(SHARE_WITH_USER) read
 
 .PHONY: upload-code
 upload-code: _check_setup  ### Upload code directory to the platform storage

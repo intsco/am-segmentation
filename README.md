@@ -10,10 +10,12 @@ Segmentation results:
 
 # Installation and setup (user)
 
-Install the neu.ro client and sign up for the service.
+Install the neu.ro client, sign up for the service, and perform initial AM segm setup
 ```
 pip install -U neuromation
 neuro login
+
+make am-setup
 ```
 
 # Installation and setup (admin)
@@ -40,7 +42,7 @@ cd data/getting-started
 wget https://am-segm.s3-eu-west-1.amazonaws.com/getting-started/training-data.zip
 unzip training-data.zip
 
-https://am-segm.s3-eu-west-1.amazonaws.com/getting-started/dataset.zip
+wget https://am-segm.s3-eu-west-1.amazonaws.com/getting-started/dataset.zip
 unzip dataset.zip
 
 cd ../..
@@ -65,6 +67,11 @@ python scripts/stitch_tiles.py data/getting-started/dataset/Luca_Well4_UL
 Run ablation marks registration script. Based on the ablation marks segmentation mask, the script will assign ids in row-wise manner to all ablation marks, starting with 1 at the top left corner. The acquisition grid size (rows x cols) needs to be provided
 ```
 python scripts/register_ams.py data/getting-started/dataset/Luca_Well4_UL --rows 60 --cols 60
+```
+
+To overlay source and mask images in tiles_stitched
+```
+python scripts/overlay_image_mask.py data/getting-started/dataset/Luca_Well4_UL
 ```
 
 # Data
