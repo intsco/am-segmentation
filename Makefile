@@ -198,7 +198,15 @@ download-predict-results: _check_setup  ### Download results directory from the 
 		--update \
 		$(PROJECT_PATH_STORAGE)/$(RESULTS_DIR)/predictions/* $(PREDICT_DATA_DIR)
 
-
+.PHONY: predict-local
+predict-local:
+	docker run --rm\
+		--volume $(PWD)/$(DATA_DIR):$(PROJECT_PATH_ENV)/$(DATA_DIR):ro \
+		--volume $(PWD)/$(CODE_DIR):$(PROJECT_PATH_ENV)/$(CODE_DIR):ro \
+		--volume $(PWD)/$(RESULTS_DIR):$(PROJECT_PATH_ENV)/$(RESULTS_DIR):rw \
+		$(DOCKER_IMAGE) \
+		bash -c 'cd $(PROJECT_PATH_ENV) && python -u src/predict.py --data-dir ${PREDICT_DATA_DIR}'
+	cp --recursive $(RESULTS_DIR)/predictions/* $(PREDICT_DATA_DIR)
 
 ##### HELP #####
 
