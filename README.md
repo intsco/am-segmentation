@@ -55,9 +55,10 @@ make train TRAIN_DATA_DIR=data/getting-started/training-data
 make download-train-results
 ```
 
-Split the dataset images into tiles, upload them to neu.ro and use the trained model to segment the dataset
+Split the dataset images into tiles. Pick the tile size so that there are <= 50 ablation marks per tile.
+Upload them to neu.ro and use the trained model to segment the dataset.
 ```
-python scripts/split_to_tiles.py data/getting-started/dataset/Luca_Well4_UL
+python scripts/split_to_tiles.py data/getting-started/dataset/Luca_Well4_UL --tile-size 512
 make upload-predict-data PREDICT_DATA_DIR=data/getting-started/dataset/Luca_Well4_UL/tiles
 make predict PREDICT_DATA_DIR=data/getting-started/dataset/Luca_Well4_UL/tiles
 make download-predict-results PREDICT_DATA_DIR=data/getting-started/dataset/Luca_Well4_UL/tiles

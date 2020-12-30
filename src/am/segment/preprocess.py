@@ -83,7 +83,7 @@ def stitch_tiles(tiles, tile_size, tile_row_n, tile_col_n):
     return image
 
 
-def stitch_and_crop_tiles(tiles_path, tile_size, meta):
+def stitch_and_crop_tiles(tiles_path, meta):
     tile_paths = sorted(tiles_path.glob('*.png'))
     if len(tile_paths) != meta['tile']['rows'] * meta['tile']['cols']:
         logger.warning(f'Number of tiles does not match meta: {len(tile_paths)}, {meta}')
@@ -92,20 +92,24 @@ def stitch_and_crop_tiles(tiles_path, tile_size, meta):
     for path in tile_paths:
         i = int(path.stem)
         tile = read_image(path)
-        tiles[i] = cv2.resize(tile, (tile_size, tile_size), interpolation=cv2.INTER_NEAREST)
+        tiles[i] = cv2.resize(
+            tile, (meta['tile']['size'], meta['tile']['size']), interpolation=cv2.INTER_NEAREST
+        )
 
-    stitched_image = stitch_tiles(tiles, tile_size, meta['tile']['rows'], meta['tile']['cols'])
+    stitched_image = stitch_tiles(
+        tiles, meta['tile']['size'], meta['tile']['rows'], meta['tile']['cols']
+    )
     stitched_image = CenterCrop(meta['image']['h'], meta['image']['w']).apply(stitched_image)
     return stitched_image
 
 
-def stitch_tiles_at_path(input_group_path, output_group_path, tile_size=512, image_ext='png'):
+def stitch_tiles_at_path(input_group_path, output_group_path, image_ext='png'):
     logger.info(f'Stitching tiles at {input_group_path}')
 
     meta = json.load(open(input_group_path / 'meta.json'))
     for image_type in ['source', 'mask']:
         if (input_group_path / image_type).exists():
-            stitched_image = stitch_and_crop_tiles(input_group_path / image_type, tile_size, meta)
+            stitched_image = stitch_and_crop_tiles(input_group_path / image_type, meta)
             if stitched_image.max() <= 1:
                 stitched_image *= 255
 

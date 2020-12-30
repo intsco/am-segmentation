@@ -10,7 +10,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('ds_path', type=str)
     parser.add_argument('groups', nargs='*')
-    parser.add_argument('--tile-size', default=512, type=int)
     args = parser.parse_args()
     init_logger()
 
@@ -18,5 +17,5 @@ if __name__ == '__main__':
         Path(args.ds_path) / 'tiles',
         Path(args.ds_path) / 'tiles_stitched',
         groups=args.groups,
-        func=partial(stitch_tiles_at_path, tile_size=args.tile_size, image_ext='tiff')
+        func=partial(stitch_tiles_at_path, image_ext='tiff')
     )

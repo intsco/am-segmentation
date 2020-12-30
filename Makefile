@@ -144,7 +144,7 @@ train: _check_setup $(SYNC)   ### Run a training job (set up env var 'RUN' to sp
 		$(SECRETS) \
 		--name $(TRAIN_JOB)-$(RUN) \
 		--tag "target:train" $(_PROJECT_TAGS) \
-		--preset gpu-k80-small \
+		--preset gpu-v100-small-p \
 		--wait-start \
 		--volume $(PROJECT_PATH_STORAGE)/$(DATA_DIR):$(PROJECT_PATH_ENV)/$(DATA_DIR):ro \
 		--volume $(PROJECT_PATH_STORAGE)/$(CODE_DIR):$(PROJECT_PATH_ENV)/$(CODE_DIR):ro \
@@ -175,6 +175,7 @@ upload-predict-data: _check_setup  ### Upload training data directory to the pla
 
 .PHONY: predict
 predict: _check_setup $(SYNC)   ### Run an inference job
+	$(NEURO) storage rm --recursive $(PROJECT_PATH_STORAGE)/$(RESULTS_DIR)/predictions
 	$(NEURO) run $(RUN_EXTRA) \
 		$(SECRETS) \
 		--name $(PREDICT_JOB)-$(RUN) \
@@ -200,7 +201,8 @@ download-predict-results: _check_setup  ### Download results directory from the 
 
 .PHONY: predict-local
 predict-local:
-	docker run --rm\
+	rm --recursive $(RESULTS_DIR)/predictions
+	docker run --rm --user 1000:1000\
 		--volume $(PWD)/$(DATA_DIR):$(PROJECT_PATH_ENV)/$(DATA_DIR):ro \
 		--volume $(PWD)/$(CODE_DIR):$(PROJECT_PATH_ENV)/$(CODE_DIR):ro \
 		--volume $(PWD)/$(RESULTS_DIR):$(PROJECT_PATH_ENV)/$(RESULTS_DIR):rw \
