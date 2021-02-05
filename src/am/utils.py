@@ -1,7 +1,7 @@
 import logging
 import tarfile
 from collections import namedtuple
-from functools import wraps
+from functools import partial, wraps
 from pathlib import Path
 from shutil import rmtree
 from time import time
@@ -35,7 +35,8 @@ def time_it(func):
         start = time()
         res = func(*args, **kwargs)
         minutes, seconds = divmod(time() - start, 60)
-        logger.info(f"Function '{func.__name__}' running time: {minutes:.0f}m {seconds:.0f}s")
+        func_name = func.func.__name__ if isinstance(func, partial) else func.__name__
+        logger.info(f"Function '{func_name}' running time: {minutes:.0f}m {seconds:.0f}s")
         return res
 
     return wrapper
@@ -79,7 +80,8 @@ def iterate_groups(input_path, output_path=None, groups=None, func=None):
             else:
                 func(input_path / group)
         except Exception as e:
+            func_name = func.func.__name__ if isinstance(func, partial) else func.__name__
             logger.error(
-                f'Failed to process {input_path / group} path with {func.__name__} function',
+                f'Failed to process {input_path / group} path with {func_name} function',
                 exc_info=True
             )
