@@ -175,7 +175,7 @@ upload-predict-data: _check_setup  ### Upload training data directory to the pla
 
 .PHONY: predict
 predict: _check_setup $(SYNC)   ### Run an inference job
-	$(NEURO) storage rm --recursive $(PROJECT_PATH_STORAGE)/$(RESULTS_DIR)/predictions
+	$(NEURO) storage rm --recursive $(PROJECT_PATH_STORAGE)/$(RESULTS_DIR)/predictions || true
 	$(NEURO) run $(RUN_EXTRA) \
 		$(SECRETS) \
 		--name $(PREDICT_JOB)-$(RUN) \
