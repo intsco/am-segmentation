@@ -201,7 +201,7 @@ download-predict-results: _check_setup  ### Download results directory from the 
 
 .PHONY: predict-local
 predict-local:
-	rm --recursive $(RESULTS_DIR)/predictions
+	rm --recursive --force $(RESULTS_DIR)/predictions
 	docker run --rm --user 1000:1000\
 		--volume $(PWD)/$(DATA_DIR):$(PROJECT_PATH_ENV)/$(DATA_DIR):ro \
 		--volume $(PWD)/$(CODE_DIR):$(PROJECT_PATH_ENV)/$(CODE_DIR):ro \
