@@ -12,7 +12,7 @@ tensorboardX
 tensorboard
 pyyaml
 -f https://download.pytorch.org/whl/torch_stable.html
-torch==1.5.1+cpu
+torch==1.13.1
 torchvision==0.6.1+cpu
 segmentation-models-pytorch==0.1.0
 albumentations==0.4.5
